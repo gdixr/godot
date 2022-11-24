@@ -1138,6 +1138,7 @@ void TileDataDefaultEditor::draw_over_tile(CanvasItem *p_canvas_item, Transform2
 void TileDataDefaultEditor::setup_property_editor(Variant::Type p_type, String p_property, String p_label, Variant p_default_value) {
 	ERR_FAIL_COND_MSG(!property.is_empty(), "Cannot setup TileDataDefaultEditor twice");
 	property = p_property;
+	property_type = p_type;
 
 	// Update everything.
 	if (property_editor) {
@@ -1180,6 +1181,10 @@ void TileDataDefaultEditor::_notification(int p_what) {
 			tile_bool_unchecked = get_theme_icon(SNAME("TileUnchecked"), SNAME("EditorIcons"));
 		} break;
 	}
+}
+
+Variant::Type TileDataDefaultEditor::get_property_type() {
+	return property_type;
 }
 
 TileDataDefaultEditor::TileDataDefaultEditor() {
@@ -2476,9 +2481,6 @@ void TileDataTerrainsEditor::forward_painting_alternatives_gui_input(TileAtlasVi
 
 						if (terrain_set == -1 || !tile_data || tile_data->get_terrain_set() != terrain_set) {
 							// Paint terrain sets.
-							if (mb->get_button_index() == MouseButton::RIGHT) {
-								terrain_set = -1;
-							}
 							drag_type = DRAG_TYPE_PAINT_TERRAIN_SET;
 							drag_modified.clear();
 							drag_painted_value = int(dummy_object->get("terrain_set"));

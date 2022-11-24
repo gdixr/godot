@@ -34,7 +34,7 @@
 #include "editor_network_profiler.h"
 #include "replication_editor.h"
 
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 
 void MultiplayerEditorDebugger::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("open_request", PropertyInfo(Variant::STRING, "path")));

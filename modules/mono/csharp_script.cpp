@@ -42,11 +42,11 @@
 
 #ifdef TOOLS_ENABLED
 #include "core/os/keyboard.h"
-#include "editor/bindings_generator.h"
-#include "editor/editor_internal_calls.h"
-#include "editor/editor_node.h"
-#include "editor/editor_settings.h"
-#include "editor/node_dock.h"
+#include "editor2/bindings_generator.h"
+#include "editor2/editor_internal_calls.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_settings.h"
+#include "editor2/node_dock.h"
 #include "editor/script_templates/templates.gen.h"
 #endif
 

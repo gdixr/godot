@@ -30,7 +30,7 @@
 
 #include "export.h"
 
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #include "export_plugin.h"
 
 void register_web_exporter() {

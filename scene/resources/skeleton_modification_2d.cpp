@@ -36,7 +36,7 @@
 #include "scene/2d/physical_bone_2d.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #endif // TOOLS_ENABLED
 
 ///////////////////////////////////////

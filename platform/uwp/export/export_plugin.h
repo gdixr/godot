@@ -39,9 +39,9 @@
 #include "core/io/zip_io.h"
 #include "core/object/class_db.h"
 #include "core/version.h"
-#include "editor/editor_node.h"
-#include "editor/editor_paths.h"
-#include "editor/export/editor_export_platform.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_paths.h"
+#include "editor2/export/editor_export_platform.h"
 
 #include "thirdparty/minizip/unzip.h"
 #include "thirdparty/minizip/zip.h"

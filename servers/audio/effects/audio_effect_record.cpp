@@ -32,7 +32,7 @@
 
 #ifdef TOOLS_ENABLED
 // FIXME: This file shouldn't depend on editor stuff.
-#include "editor/import/resource_importer_wav.h"
+#include "editor2/import/resource_importer_wav.h"
 #endif
 
 void AudioEffectRecordInstance::process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) {

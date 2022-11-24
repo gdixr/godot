@@ -33,7 +33,7 @@
 #include "core/math/geometry_2d.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_scale.h"
+#include "editor2/editor_scale.h"
 #endif
 
 #ifdef TOOLS_ENABLED

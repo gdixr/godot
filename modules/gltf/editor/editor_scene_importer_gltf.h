@@ -33,7 +33,7 @@
 
 #ifdef TOOLS_ENABLED
 
-#include "editor/import/resource_importer_scene.h"
+#include "editor2/import/resource_importer_scene.h"
 
 class Animation;
 class Node;

@@ -44,7 +44,7 @@
 #include "modules/gdscript/gdscript_tokenizer.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #endif
 
 namespace GDScriptTests {

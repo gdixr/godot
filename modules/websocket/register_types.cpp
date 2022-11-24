@@ -46,9 +46,9 @@
 #endif
 
 #ifdef TOOLS_ENABLED
-#include "editor/debugger/editor_debugger_server.h"
+#include "editor2/debugger/editor_debugger_server.h"
 #include "editor/editor_debugger_server_websocket.h"
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 #endif
 
 #ifdef TOOLS_ENABLED

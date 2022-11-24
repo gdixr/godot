@@ -35,7 +35,7 @@
 #include "scene/resources/texture.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/import/audio_stream_import_settings.h"
+#include "editor2/import/audio_stream_import_settings.h"
 #endif
 
 String ResourceImporterMP3::get_importer_name() const {

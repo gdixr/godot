@@ -36,7 +36,7 @@
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/os/time.h"
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 
 #include <emscripten/emscripten.h>
 

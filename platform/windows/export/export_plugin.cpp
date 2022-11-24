@@ -32,8 +32,8 @@
 
 #include "core/config/project_settings.h"
 #include "core/io/image_loader.h"
-#include "editor/editor_node.h"
-#include "editor/editor_paths.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_paths.h"
 
 Error EditorExportPlatformWindows::_process_icon(const Ref<EditorExportPreset> &p_preset, const String &p_src_path, const String &p_dst_path) {
 	static const uint8_t icon_size[] = { 16, 32, 48, 64, 128, 0 /*256*/ };

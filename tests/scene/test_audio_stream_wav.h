@@ -39,7 +39,7 @@
 
 #ifdef TOOLS_ENABLED
 #include "core/io/resource_loader.h"
-#include "editor/import/resource_importer_wav.h"
+#include "editor2/import/resource_importer_wav.h"
 #endif
 
 namespace TestAudioStreamWAV {

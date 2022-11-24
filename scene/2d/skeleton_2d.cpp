@@ -31,9 +31,9 @@
 #include "skeleton_2d.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_data.h"
-#include "editor/editor_settings.h"
-#include "editor/plugins/canvas_item_editor_plugin.h"
+#include "editor2/editor_data.h"
+#include "editor2/editor_settings.h"
+#include "editor2/plugins/canvas_item_editor_plugin.h"
 #endif //TOOLS_ENABLED
 
 bool Bone2D::_set(const StringName &p_path, const Variant &p_value) {

@@ -85,17 +85,17 @@
 #endif
 
 #ifdef TOOLS_ENABLED
-#include "editor/debugger/editor_debugger_node.h"
-#include "editor/doc_data_class_path.gen.h"
-#include "editor/doc_tools.h"
-#include "editor/editor_node.h"
-#include "editor/editor_paths.h"
-#include "editor/editor_settings.h"
-#include "editor/editor_translation.h"
-#include "editor/progress_dialog.h"
-#include "editor/project_converter_3_to_4.h"
-#include "editor/project_manager.h"
-#include "editor/register_editor_types.h"
+#include "editor2/debugger/editor_debugger_node.h"
+#include "editor2/doc_data_class_path.gen.h"
+#include "editor2/doc_tools.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_paths.h"
+#include "editor2/editor_settings.h"
+#include "editor2/editor_translation.h"
+#include "editor2/progress_dialog.h"
+#include "editor2/project_converter_3_to_4.h"
+#include "editor2/project_manager.h"
+#include "editor2/register_editor_types.h"
 #ifndef NO_EDITOR_SPLASH
 #include "main/splash_editor.gen.h"
 #endif

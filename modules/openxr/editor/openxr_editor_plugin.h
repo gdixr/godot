@@ -31,7 +31,7 @@
 #ifndef OPENXR_EDITOR_PLUGIN_H
 #define OPENXR_EDITOR_PLUGIN_H
 
-#include "editor/editor_plugin.h"
+#include "editor2/editor_plugin.h"
 #include "openxr_action_map_editor.h"
 
 class OpenXREditorPlugin : public EditorPlugin {

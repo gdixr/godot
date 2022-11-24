@@ -31,7 +31,7 @@
 #ifndef REPLICATION_EDITOR_H
 #define REPLICATION_EDITOR_H
 
-#include "editor/editor_plugin.h"
+#include "editor2/editor_plugin.h"
 #include "modules/multiplayer/scene_replication_config.h"
 #include "scene/gui/box_container.h"
 

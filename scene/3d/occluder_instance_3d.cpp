@@ -40,7 +40,7 @@
 #include "scene/resources/surface_tool.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 #endif
 
 RID Occluder3D::get_rid() const {

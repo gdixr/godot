@@ -33,7 +33,7 @@
 
 #include "../gdscript_parser.h"
 #include "core/variant/variant.h"
-#include "editor/editor_file_system.h"
+#include "editor2/editor_file_system.h"
 #include "gdscript_extend_parser.h"
 #include "godot_lsp.h"
 

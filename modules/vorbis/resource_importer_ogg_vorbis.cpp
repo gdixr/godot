@@ -37,7 +37,7 @@
 #include "thirdparty/libvorbis/vorbis/codec.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/import/audio_stream_import_settings.h"
+#include "editor2/import/audio_stream_import_settings.h"
 #endif
 
 String ResourceImporterOggVorbis::get_importer_name() const {

@@ -37,7 +37,7 @@
 #include "scene/gui/color_mode.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #endif
 
 #include "thirdparty/misc/ok_color.h"

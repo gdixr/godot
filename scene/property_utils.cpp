@@ -35,7 +35,7 @@
 #include "scene/resources/packed_scene.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 #endif // TOOLS_ENABLED
 
 bool PropertyUtils::is_property_value_different(const Variant &p_a, const Variant &p_b) {

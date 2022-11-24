@@ -34,8 +34,8 @@
 #ifdef TOOLS_ENABLED
 
 #include "../csg_shape.h"
-#include "editor/editor_plugin.h"
-#include "editor/plugins/node_3d_editor_gizmos.h"
+#include "editor2/editor_plugin.h"
+#include "editor2/plugins/node_3d_editor_gizmos.h"
 
 class CSGShape3DGizmoPlugin : public EditorNode3DGizmoPlugin {
 	GDCLASS(CSGShape3DGizmoPlugin, EditorNode3DGizmoPlugin);

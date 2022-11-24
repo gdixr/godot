@@ -42,7 +42,7 @@
 
 #ifdef TOOLS_ENABLED
 
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 #include "editor/openxr_editor_plugin.h"
 
 static void _editor_init() {

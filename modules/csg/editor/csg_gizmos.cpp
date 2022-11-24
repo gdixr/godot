@@ -32,10 +32,10 @@
 
 #ifdef TOOLS_ENABLED
 
-#include "editor/editor_node.h"
-#include "editor/editor_settings.h"
-#include "editor/editor_undo_redo_manager.h"
-#include "editor/plugins/node_3d_editor_plugin.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_settings.h"
+#include "editor2/editor_undo_redo_manager.h"
+#include "editor2/plugins/node_3d_editor_plugin.h"
 #include "scene/3d/camera_3d.h"
 
 ///////////

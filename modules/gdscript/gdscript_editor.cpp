@@ -41,8 +41,8 @@
 
 #ifdef TOOLS_ENABLED
 #include "core/config/project_settings.h"
-#include "editor/editor_file_system.h"
-#include "editor/editor_settings.h"
+#include "editor2/editor_file_system.h"
+#include "editor2/editor_settings.h"
 #include "editor/script_templates/templates.gen.h"
 #endif
 

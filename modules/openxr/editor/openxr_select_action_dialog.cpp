@@ -29,7 +29,7 @@
 /*************************************************************************/
 
 #include "openxr_select_action_dialog.h"
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 
 void OpenXRSelectActionDialog::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("action_selected", PropertyInfo(Variant::STRING, "action")));

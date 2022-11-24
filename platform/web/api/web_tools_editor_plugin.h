@@ -33,7 +33,7 @@
 
 #if defined(TOOLS_ENABLED) && defined(WEB_ENABLED)
 #include "core/io/zip_io.h"
-#include "editor/editor_plugin.h"
+#include "editor2/editor_plugin.h"
 
 class WebToolsEditorPlugin : public EditorPlugin {
 	GDCLASS(WebToolsEditorPlugin, EditorPlugin);

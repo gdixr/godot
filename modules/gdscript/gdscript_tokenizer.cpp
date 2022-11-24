@@ -33,7 +33,7 @@
 #include "core/error/error_macros.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #endif
 
 static const char *token_names[] = {

@@ -36,7 +36,7 @@
 
 #ifdef TOOLS_ENABLED
 #include "core/version.h"
-#include "editor/editor_paths.h"
+#include "editor2/editor_paths.h"
 #endif
 
 #ifdef ANDROID_ENABLED

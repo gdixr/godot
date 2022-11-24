@@ -32,9 +32,9 @@
 
 #include "core/io/file_access.h"
 #include "core/os/os.h"
-#include "editor/editor_log.h"
-#include "editor/editor_node.h"
-#include "editor/editor_settings.h"
+#include "editor2/editor_log.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_settings.h"
 
 GDScriptLanguageServer::GDScriptLanguageServer() {
 	_EDITOR_DEF("network/language_server/remote_host", host);

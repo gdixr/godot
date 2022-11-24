@@ -36,7 +36,7 @@
 #include "core/string/translation_po.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/import/resource_importer_csv_translation.h"
+#include "editor2/import/resource_importer_csv_translation.h"
 #endif
 
 #include "tests/test_macros.h"

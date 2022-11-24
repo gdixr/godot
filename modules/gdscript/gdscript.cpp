@@ -51,7 +51,7 @@
 #endif
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_paths.h"
+#include "editor2/editor_paths.h"
 #endif
 
 ///////////////////////////

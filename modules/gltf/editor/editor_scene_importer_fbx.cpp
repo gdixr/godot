@@ -36,7 +36,7 @@
 #include "../gltf_state.h"
 
 #include "core/config/project_settings.h"
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #include "scene/main/node.h"
 #include "scene/resources/animation.h"
 

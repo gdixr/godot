@@ -31,7 +31,7 @@
 #include "export_plugin.h"
 
 #include "core/config/project_settings.h"
-#include "editor/editor_node.h"
+#include "editor2/editor_node.h"
 
 Error EditorExportPlatformLinuxBSD::_export_debug_script(const Ref<EditorExportPreset> &p_preset, const String &p_app_name, const String &p_pkg_name, const String &p_path) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::WRITE);

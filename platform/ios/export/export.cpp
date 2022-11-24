@@ -30,7 +30,7 @@
 
 #include "export.h"
 
-#include "editor/export/editor_export.h"
+#include "editor2/export/editor_export.h"
 #include "export_plugin.h"
 
 void register_ios_exporter() {

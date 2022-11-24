@@ -36,8 +36,8 @@
 
 #include "core/io/image_loader.h"
 #include "core/string/translation.h"
-#include "editor/editor_node.h"
-#include "editor/editor_paths.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_paths.h"
 
 #include "modules/modules_enabled.gen.h" // For regex.
 

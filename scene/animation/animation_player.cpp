@@ -36,8 +36,8 @@
 #include "servers/audio/audio_stream.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_node.h"
-#include "editor/editor_undo_redo_manager.h"
+#include "editor2/editor_node.h"
+#include "editor2/editor_undo_redo_manager.h"
 #include "scene/2d/skeleton_2d.h"
 
 void AnimatedValuesBackup::update_skeletons() {

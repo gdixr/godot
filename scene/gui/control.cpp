@@ -49,7 +49,7 @@
 #include "servers/text_server.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/plugins/control_editor_plugin.h"
+#include "editor2/plugins/control_editor_plugin.h"
 #endif
 
 // Editor plugin interoperability.

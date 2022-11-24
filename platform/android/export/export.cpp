@@ -31,8 +31,8 @@
 #include "export.h"
 
 #include "core/os/os.h"
-#include "editor/editor_settings.h"
-#include "editor/export/editor_export.h"
+#include "editor2/editor_settings.h"
+#include "editor2/export/editor_export.h"
 #include "export_plugin.h"
 
 void register_android_exporter() {

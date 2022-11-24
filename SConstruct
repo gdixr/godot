@@ -58,8 +58,8 @@ import gles3_builders
 from platform_methods import architectures, architecture_aliases
 
 if ARGUMENTS.get("target", "editor") == "editor":
-    _helper_module("editor.editor_builders", "editor/editor_builders.py")
-    _helper_module("editor.template_builders", "editor/template_builders.py")
+    _helper_module("editor.editor_builders", "editor2/editor_builders.py")
+    _helper_module("editor.template_builders", "editor2/template_builders.py")
 
 # Scan possible build platforms
 
@@ -898,7 +898,7 @@ if selected_platform in platform_list:
     SConscript("servers/SCsub")
     SConscript("scene/SCsub")
     if env.editor_build:
-        SConscript("editor/SCsub")
+        SConscript("editor2/SCsub")
     SConscript("drivers/SCsub")
 
     SConscript("platform/SCsub")

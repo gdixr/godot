@@ -30,7 +30,7 @@
 
 #include "export_plugin.h"
 
-#include "editor/editor_settings.h"
+#include "editor2/editor_settings.h"
 #include "platform/uwp/logo.gen.h"
 
 String EditorExportPlatformUWP::get_name() const {

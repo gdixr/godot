@@ -35,7 +35,7 @@
 #include "noise_texture_2d.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_plugin.h"
+#include "editor2/editor_plugin.h"
 #include "editor/noise_editor_plugin.h"
 #endif
 

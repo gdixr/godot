@@ -31,9 +31,9 @@
 #ifndef MULTIPLAYER_EDITOR_PLUGIN_H
 #define MULTIPLAYER_EDITOR_PLUGIN_H
 
-#include "editor/editor_plugin.h"
+#include "editor2/editor_plugin.h"
 
-#include "editor/plugins/editor_debugger_plugin.h"
+#include "editor2/plugins/editor_debugger_plugin.h"
 
 class EditorNetworkProfiler;
 class MultiplayerEditorDebugger : public EditorDebuggerPlugin {

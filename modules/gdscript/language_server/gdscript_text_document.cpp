@@ -32,8 +32,8 @@
 
 #include "../gdscript.h"
 #include "core/os/os.h"
-#include "editor/editor_settings.h"
-#include "editor/plugins/script_text_editor.h"
+#include "editor2/editor_settings.h"
+#include "editor2/plugins/script_text_editor.h"
 #include "gdscript_extend_parser.h"
 #include "gdscript_language_protocol.h"
 #include "servers/display_server.h"

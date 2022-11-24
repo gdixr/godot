@@ -32,7 +32,7 @@
 #define GDSCRIPT_TRANSLATION_PARSER_PLUGIN_H
 
 #include "core/templates/hash_set.h"
-#include "editor/editor_translation_parser.h"
+#include "editor2/editor_translation_parser.h"
 #include "modules/gdscript/gdscript_parser.h"
 
 class GDScriptEditorTranslationParserPlugin : public EditorTranslationParserPlugin {

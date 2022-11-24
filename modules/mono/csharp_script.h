@@ -41,7 +41,7 @@
 #include "mono_gd/gd_mono.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_plugin.h"
+#include "editor2/editor_plugin.h"
 #endif
 
 class CSharpScript;

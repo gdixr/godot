@@ -35,8 +35,8 @@
 #include "plist.h"
 
 #include "core/os/os.h"
-#include "editor/editor_paths.h"
-#include "editor/editor_settings.h"
+#include "editor2/editor_paths.h"
+#include "editor2/editor_settings.h"
 
 #include "modules/modules_enabled.gen.h" // For regex.
 

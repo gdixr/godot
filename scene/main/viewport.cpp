@@ -492,6 +492,7 @@ void Viewport::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_WM_WINDOW_FOCUS_OUT: {
+			_gui_cancel_tooltip();
 			_drop_physics_mouseover();
 			if (gui.mouse_focus && !gui.forced_mouse_focus) {
 				_drop_mouse_focus();
@@ -2096,7 +2097,7 @@ List<Control *>::Element *Viewport::_gui_add_root_control(Control *p_control) {
 	return gui.roots.push_back(p_control);
 }
 
-void Viewport::_gui_set_root_order_dirty() {
+void Viewport::gui_set_root_order_dirty() {
 	gui.roots_order_dirty = true;
 }
 

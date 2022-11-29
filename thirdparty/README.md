@@ -74,7 +74,7 @@ Files extracted from upstream source:
 ## embree
 
 - Upstream: https://github.com/embree/embree
-- Version: 3.13.1 (12b99393438a4cc9e478e33459eed78bec6233fd, 2021)
+- Version: 3.13.5 (698442324ccddd11725fb8875275dc1384f7fb40, 2022)
 - License: Apache 2.0
 
 Files extracted from upstream:
@@ -591,7 +591,7 @@ in 10.40, it can be found in the `patches` folder.
 ## recastnavigation
 
 - Upstream: https://github.com/recastnavigation/recastnavigation
-- Version: git (5a870d427e47abd4a8e4ce58a95582ec049434d5, 2022)
+- Version: git (4fef0446609b23d6ac180ed822817571525528a1, 2022)
 - License: zlib
 
 Files extracted from upstream source:

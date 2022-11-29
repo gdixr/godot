@@ -260,7 +260,7 @@ Ref<GDScript> GDScriptCache::get_full_script(const String &p_path, Error &r_erro
 	Ref<GDScript> script;
 	r_error = OK;
 	if (singleton->full_gdscript_cache.has(p_path)) {
-		script = Ref<GDScript>(singleton->full_gdscript_cache[p_path]);
+		script = singleton->full_gdscript_cache[p_path];
 		if (!p_update_from_disk) {
 			return script;
 		}
@@ -360,34 +360,8 @@ Ref<PackedScene> GDScriptCache::get_packed_scene(const String &p_path, Error &r_
 	singleton->packed_scene_cache[p_path] = scene;
 	singleton->packed_scene_dependencies[p_path].insert(p_owner);
 
-	scene->recreate_state();
 	scene->reload_from_file();
 	return scene;
-}
-
-Ref<GDScript> GDScriptCache::get_packed_scene_script(const String &p_path, Error &r_error) {
-	r_error = OK;
-	Ref<PackedScene> scene = get_packed_scene(p_path, r_error);
-
-	if (r_error != OK) {
-		return Ref<GDScript>();
-	}
-
-	int node_count = scene->get_state()->get_node_count();
-	if (node_count == 0) {
-		return Ref<GDScript>();
-	}
-
-	const int ROOT_NODE = 0;
-	for (int i = 0; i < scene->get_state()->get_node_property_count(ROOT_NODE); i++) {
-		if (scene->get_state()->get_node_property_name(ROOT_NODE, i) != SNAME("script")) {
-			continue;
-		}
-
-		return scene->get_state()->get_node_property_value(ROOT_NODE, i);
-	}
-
-	return Ref<GDScript>();
 }
 
 void GDScriptCache::clear_unreferenced_packed_scenes() {

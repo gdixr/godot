@@ -3456,7 +3456,7 @@ void AnimationTrackEditor::set_animation(const Ref<Animation> &p_anim, bool p_re
 	_update_tracks();
 
 	if (animation.is_valid()) {
-		animation->connect("changed", callable_mp(this, &AnimationTrackEditor::_animation_changed), CONNECT_DEFERRED);
+		animation->connect("changed", callable_mp(this, &AnimationTrackEditor::_animation_changed));
 
 		hscroll->show();
 		edit->set_disabled(read_only);
@@ -3849,7 +3849,7 @@ void AnimationTrackEditor::insert_transform_key(Node3D *p_node, const String &p_
 	}
 
 	// Let's build a node path.
-	String path = root->get_path_to(p_node);
+	String path = root->get_path_to(p_node, true);
 	if (!p_sub.is_empty()) {
 		path += ":" + p_sub;
 	}
@@ -3889,7 +3889,7 @@ bool AnimationTrackEditor::has_track(Node3D *p_node, const String &p_sub, const 
 	}
 
 	// Let's build a node path.
-	String path = root->get_path_to(p_node);
+	String path = root->get_path_to(p_node, true);
 	if (!p_sub.is_empty()) {
 		path += ":" + p_sub;
 	}
@@ -3937,11 +3937,10 @@ void AnimationTrackEditor::_insert_animation_key(NodePath p_path, const Variant 
 
 void AnimationTrackEditor::insert_node_value_key(Node *p_node, const String &p_property, const Variant &p_value, bool p_only_if_exists) {
 	ERR_FAIL_COND(!root);
+
 	// Let's build a node path.
-
 	Node *node = p_node;
-
-	String path = root->get_path_to(node);
+	String path = root->get_path_to(node, true);
 
 	if (Object::cast_to<AnimationPlayer>(node) && p_property == "current_animation") {
 		if (node == AnimationPlayerEditor::get_singleton()->get_player()) {
@@ -4035,14 +4034,13 @@ void AnimationTrackEditor::insert_value_key(const String &p_property, const Vari
 	EditorSelectionHistory *history = EditorNode::get_singleton()->get_editor_selection_history();
 
 	ERR_FAIL_COND(!root);
-	// Let's build a node path.
 	ERR_FAIL_COND(history->get_path_size() == 0);
 	Object *obj = ObjectDB::get_instance(history->get_path_object(0));
 	ERR_FAIL_COND(!Object::cast_to<Node>(obj));
 
+	// Let's build a node path.
 	Node *node = Object::cast_to<Node>(obj);
-
-	String path = root->get_path_to(node);
+	String path = root->get_path_to(node, true);
 
 	if (Object::cast_to<AnimationPlayer>(node) && p_property == "current_animation") {
 		if (node == AnimationPlayerEditor::get_singleton()->get_player()) {
@@ -4657,19 +4655,19 @@ void AnimationTrackEditor::_animation_changed() {
 	}
 
 	if (key_edit) {
-		_update_key_edit();
-	}
-
-	if (key_edit && key_edit->setting) {
-		// If editing a key, just redraw the edited track, makes refresh less costly.
-		if (key_edit->track < track_edits.size()) {
-			if (animation->track_get_type(key_edit->track) == Animation::TYPE_BEZIER) {
-				bezier_edit->queue_redraw();
-			} else {
-				track_edits[key_edit->track]->queue_redraw();
+		if (key_edit->setting) {
+			// If editing a key, just redraw the edited track, makes refresh less costly.
+			if (key_edit->track < track_edits.size()) {
+				if (animation->track_get_type(key_edit->track) == Animation::TYPE_BEZIER) {
+					bezier_edit->queue_redraw();
+				} else {
+					track_edits[key_edit->track]->queue_redraw();
+				}
 			}
+			return;
+		} else {
+			_update_key_edit();
 		}
-		return;
 	}
 
 	animation_changing_awaiting_update = true;
@@ -4826,7 +4824,7 @@ void AnimationTrackEditor::_new_track_node_selected(NodePath p_path) {
 	ERR_FAIL_COND(!root);
 	Node *node = get_node(p_path);
 	ERR_FAIL_COND(!node);
-	NodePath path_to = root->get_path_to(node);
+	NodePath path_to = root->get_path_to(node, true);
 
 	if (adding_track_type == Animation::TYPE_BLEND_SHAPE && !node->is_class("MeshInstance3D")) {
 		EditorNode::get_singleton()->show_warning(TTR("Blend Shape tracks only apply to MeshInstance3D nodes."));
@@ -5289,7 +5287,12 @@ void AnimationTrackEditor::_update_key_edit() {
 		key_edit->track = selection.front()->key().track;
 		key_edit->use_fps = timeline->is_using_fps();
 
-		float ofs = animation->track_get_key_time(key_edit->track, selection.front()->key().key);
+		int key_id = selection.front()->key().key;
+		if (key_id >= animation->track_get_key_count(key_edit->track)) {
+			_clear_key_edit();
+			return; // Probably in the process of rearranging the keys.
+		}
+		float ofs = animation->track_get_key_time(key_edit->track, key_id);
 		key_edit->key_ofs = ofs;
 		key_edit->root_path = root;
 
@@ -5317,6 +5320,11 @@ void AnimationTrackEditor::_update_key_edit() {
 				base_map[track] = NodePath();
 			}
 
+			int key_id = E.key.key;
+			if (key_id >= animation->track_get_key_count(track)) {
+				_clear_key_edit();
+				return; // Probably in the process of rearranging the keys.
+			}
 			key_ofs_map[track].push_back(animation->track_get_key_time(track, E.key.key));
 		}
 		multi_key_edit->key_ofs_map = key_ofs_map;
@@ -5352,6 +5360,7 @@ void AnimationTrackEditor::_select_at_anim(const Ref<Animation> &p_anim, int p_t
 	ki.pos = p_pos;
 
 	selection.insert(sk, ki);
+	_update_key_edit();
 }
 
 void AnimationTrackEditor::_move_selection_commit() {
@@ -5428,7 +5437,6 @@ void AnimationTrackEditor::_move_selection_commit() {
 	undo_redo->add_do_method(this, "_redraw_tracks");
 	undo_redo->add_undo_method(this, "_redraw_tracks");
 	undo_redo->commit_action();
-	_update_key_edit();
 }
 
 void AnimationTrackEditor::_move_selection_cancel() {
@@ -5659,7 +5667,6 @@ void AnimationTrackEditor::_anim_duplicate_keys(bool transpose) {
 		undo_redo->add_do_method(this, "_redraw_tracks");
 		undo_redo->add_undo_method(this, "_redraw_tracks");
 		undo_redo->commit_action();
-		_update_key_edit();
 	}
 }
 
@@ -5907,9 +5914,7 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 			}
 
 			float s = scale->get_value();
-			if (s == 0) {
-				ERR_PRINT("Can't scale to 0");
-			}
+			ERR_FAIL_COND_MSG(s == 0, "Can't scale to 0.");
 
 			Ref<EditorUndoRedoManager> &undo_redo = EditorNode::get_undo_redo();
 			undo_redo->create_action(TTR("Anim Scale Keys"));
@@ -5985,8 +5990,6 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 			undo_redo->add_do_method(this, "_redraw_tracks");
 			undo_redo->add_undo_method(this, "_redraw_tracks");
 			undo_redo->commit_action();
-			_update_key_edit();
-
 		} break;
 
 		case EDIT_EASE_SELECTION: {

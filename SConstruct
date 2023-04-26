@@ -100,7 +100,7 @@ for x in sorted(glob.glob("platform/*")):
 
 methods.save_active_platforms(active_platforms, active_platform_ids)
 
-custom_tools = ["default"]
+custom_tools = ["default", 'qt6']
 
 platform_arg = ARGUMENTS.get("platform", ARGUMENTS.get("p", False))
 
@@ -115,7 +115,7 @@ elif os.name == "nt" and methods.get_cmdline_bool("use_mingw", False):
 # We let SCons build its default ENV as it includes OS-specific things which we don't
 # want to have to pull in manually.
 # Then we prepend PATH to make it take precedence, while preserving SCons' own entries.
-env_base = Environment(tools=custom_tools)
+env_base = Environment(QT6DIR='D:/software/Qt/6.5.0/msvc2019_64', tools=custom_tools)
 env_base.PrependENVPath("PATH", os.getenv("PATH"))
 env_base.PrependENVPath("PKG_CONFIG_PATH", os.getenv("PKG_CONFIG_PATH"))
 if "TERM" in os.environ:  # Used for colored output.
@@ -492,6 +492,17 @@ if selected_platform in platform_list:
     LINKFLAGS = env.get("LINKFLAGS", "")
     env["LINKFLAGS"] = ""
     env.Append(LINKFLAGS=str(LINKFLAGS).split())
+
+
+    # Qt test area
+    env.AppendUnique(CXXFLAGS=["/Zc:__cplusplus", "/permissive-"])  # assume all sources are C++
+    env.Prepend(CCFLAGS=["/std:c++17"])
+    env.EnableQt6Modules([
+                      'QtGui',
+                      'QtCore',
+                      'QtNetwork',
+                      'QtWidgets'
+                     ])
 
     # Feature build profile
     disabled_classes = []

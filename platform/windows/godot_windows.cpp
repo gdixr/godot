@@ -33,6 +33,7 @@
 
 #include <locale.h>
 #include <stdio.h>
+#include <QApplication>
 
 // For export templates, add a section; the exporter will patch it to enclose
 // the data appended to the executable (bundled PCK)
@@ -149,15 +150,27 @@ char *wc_to_utf8(const wchar_t *wc) {
 }
 
 int widechar_main(int argc, wchar_t **argv) {
+
+	// Tp suitbale for windows resolution scale
+	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Floor);
+	QApplication a(argc, nullptr);
+
 	OS_Windows os(nullptr);
 
 	setlocale(LC_CTYPE, "");
 
+	// for test
+	argc = 4;
+
 	char **argv_utf8 = new char *[argc];
 
-	for (int i = 0; i < argc; ++i) {
+	for (int i = 0; i < 1; ++i) {
 		argv_utf8[i] = wc_to_utf8(argv[i]);
 	}
+
+	argv_utf8[1] = wc_to_utf8(L"-e");
+	argv_utf8[2] = wc_to_utf8(L"--path");
+	argv_utf8[3] = wc_to_utf8(L"C:/Users/johnx/Documents/godotSample/Helloworld");
 
 	TEST_MAIN_PARAM_OVERRIDE(argc, argv_utf8)
 

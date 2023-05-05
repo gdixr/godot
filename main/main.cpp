@@ -113,6 +113,7 @@
 #include "modules/mono/editor/bindings_generator.h"
 #endif
 
+#include "platform/windows/display_server_widget_windows.h"
 /* Static members */
 
 // Singletons
@@ -284,7 +285,8 @@ void finalize_display() {
 	rendering_server->finish();
 	memdelete(rendering_server);
 
-	memdelete(display_server);
+	delete display_server;
+	//memdelete(display_server);
 }
 
 void initialize_navigation_server() {
@@ -1539,6 +1541,10 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 
 	// Start with RenderingDevice-based backends. Should be included if any RD driver present.
 #ifdef VULKAN_ENABLED
+
+	if (rendering_driver.is_empty() && rendering_method.is_empty() && !project_manager) {
+		rendering_driver = "vulkan";
+	}
 	renderer_hints = "forward_plus,mobile";
 	default_renderer_mobile = "mobile";
 #endif

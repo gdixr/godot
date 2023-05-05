@@ -41,6 +41,7 @@
 #include "lang_table.h"
 #include "main/main.h"
 #include "platform/windows/display_server_windows.h"
+#include "platform/windows/display_server_widget_windows.h"
 #include "servers/audio_server.h"
 #include "servers/rendering/rendering_server_default.h"
 #include "servers/text_server.h"
@@ -60,6 +61,8 @@
 #include <imagehlp.h>
 #pragma pack(pop, before_imagehlp)
 #endif
+
+#include <QApplication>
 
 extern "C" {
 __declspec(dllexport) DWORD NvOptimusEnablement = 1;
@@ -1388,6 +1391,10 @@ void OS_Windows::run() {
 	main_loop->initialize();
 
 	while (true) {
+
+		// processing qt related events
+		QApplication::processEvents();
+
 		DisplayServer::get_singleton()->process_events(); // get rid of pending events
 		if (Main::iteration()) {
 			break;
@@ -1606,7 +1613,8 @@ OS_Windows::OS_Windows(HINSTANCE _hInstance) {
 	AudioDriverManager::add_driver(&driver_xaudio2);
 #endif
 
-	DisplayServerWindows::register_windows_driver();
+	//DisplayServerWindows::register_windows_driver();
+	DisplayServerWidgetWindows::register_widget_driver();
 
 	// Enable ANSI escape code support on Windows 10 v1607 (Anniversary Update) and later.
 	// This lets the engine and projects use ANSI escape codes to color text just like on macOS and Linux.

@@ -493,17 +493,6 @@ if selected_platform in platform_list:
     env["LINKFLAGS"] = ""
     env.Append(LINKFLAGS=str(LINKFLAGS).split())
 
-
-    # Qt test area
-    env.AppendUnique(CXXFLAGS=["/Zc:__cplusplus", "/permissive-"])  # assume all sources are C++
-    env.Prepend(CCFLAGS=["/std:c++17"])
-    env.EnableQt6Modules([
-                      'QtGui',
-                      'QtCore',
-                      'QtNetwork',
-                      'QtWidgets'
-                     ])
-
     # Feature build profile
     disabled_classes = []
     if env["build_profile"] != "":
@@ -614,6 +603,14 @@ if selected_platform in platform_list:
         # MSVC doesn't have clear C standard support, /std only covers C++.
         # We apply it to CCFLAGS (both C and C++ code) in case it impacts C features.
         env.Prepend(CCFLAGS=["/std:c++17"])
+        env.Prepend(CXXFLAGS=["/Zc:__cplusplus", "/permissive-"])  # assume all sources are C++
+        # Qt test area
+        env.EnableQt6Modules([
+                      'QtGui',
+                      'QtCore',
+                      'QtNetwork',
+                      'QtWidgets'
+                     ])
 
     # Enforce our minimal compiler version requirements
     cc_version = methods.get_compiler_version(env) or {

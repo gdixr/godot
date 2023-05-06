@@ -222,6 +222,7 @@ void DisplayServerWidgetWindows::mouseMoveEvent(QMouseEvent *event) {
 	mm->set_velocity(Vector2(0, 0));
 
 	Input::get_singleton()->parse_input_event(mm);
+	Input::get_singleton()->release_pressed_events();
 }
 
 void DisplayServerWidgetWindows::mousePressEvent(QMouseEvent *event) {
@@ -242,6 +243,7 @@ void DisplayServerWidgetWindows::mousePressEvent(QMouseEvent *event) {
 	mb->set_position(Vector2(p.x(), p.y()));
 
 	Input::get_singleton()->parse_input_event(mb);
+	Input::get_singleton()->release_pressed_events();
 }
 
 void DisplayServerWidgetWindows::mouseReleaseEvent(QMouseEvent *event) {
@@ -259,6 +261,43 @@ void DisplayServerWidgetWindows::mouseReleaseEvent(QMouseEvent *event) {
 	mb->set_button_mask(last_button_state);
 
 	Input::get_singleton()->parse_input_event(mb);
+	Input::get_singleton()->release_pressed_events();
+}
+
+void DisplayServerWidgetWindows::wheelEvent(QWheelEvent* p_event) {
+	Ref<InputEventMouseButton> mb;
+	mb.instantiate();
+	mb->set_window_id(0);
+	mb->set_pressed(true);
+	
+	int motion = p_event->angleDelta().y();
+	if (motion > 0) {
+		mb->set_button_index(MouseButton::WHEEL_UP);
+	}
+	else {
+		mb->set_button_index(MouseButton::WHEEL_DOWN);
+	}
+	mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
+	if (mb->is_pressed()) {
+		last_button_state.set_flag(mouse_button_to_mask(mb->get_button_index()));
+	}
+	else {
+		last_button_state.clear_flag(mouse_button_to_mask(mb->get_button_index()));
+	}
+	mb->set_button_mask(last_button_state);
+	QPoint p = mapFromGlobal(QCursor::pos());
+	mb->set_position(Vector2(p.x(), p.y()));
+	Input::get_singleton()->parse_input_event(mb);
+
+	if (mb->is_pressed() && mb->get_button_index() >= MouseButton::WHEEL_UP && mb->get_button_index() <= MouseButton::WHEEL_RIGHT) {
+		// Send release for mouse wheel.
+		Ref<InputEventMouseButton> mbd = mb->duplicate();
+		mbd->set_window_id(0);
+		last_button_state.clear_flag(mouse_button_to_mask(mbd->get_button_index()));
+		mbd->set_button_mask(last_button_state);
+		mbd->set_pressed(false);
+		Input::get_singleton()->parse_input_event(mbd);
+	}
 	Input::get_singleton()->release_pressed_events();
 }
 
@@ -454,6 +493,8 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 	// HOWEVER, this important attribute stops the "paintEvent" slot from being called,
 	// thus we'll need to write our own method that paints to the screen every frame.
 	setAttribute(Qt::WA_PaintOnScreen);
+
+	setMouseTracking(true);
 
 	// re-size the widget size to the default godot window size
 	resize(1152, 648);

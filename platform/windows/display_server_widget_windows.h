@@ -42,13 +42,44 @@ class DisplayServerWidgetWindows : public QWidget, DisplayServer {
 	bool main_loop_valid = false;
 	bool in_dispatch_input_event = false;
 
-protected:
-	virtual void resizeEvent(QResizeEvent *event);
-	virtual void mouseMoveEvent(QMouseEvent *event);
-	virtual void mousePressEvent(QMouseEvent *event);
-	virtual void mouseReleaseEvent(QMouseEvent *event);
+	struct KeyEvent {
+		WindowID window_id;
+		bool alt, shift, control, meta;
+		bool pressed;
+		int unicode;
+		int keycode;
+		bool extended_key = false;
+	};
 
-	virtual void closeEvent(QCloseEvent *event);
+	KeyEvent _key_event_buffer[512];
+	int _key_event_pos = 0;
+
+	bool _old_invalid;
+	int _old_x, _old_y;
+	bool _alt_mem = false;
+	bool _gr_mem = false;
+	bool _shift_mem = false;
+	bool _control_mem = false;
+	bool _meta_mem = false;
+
+private:
+	void _process_key_events();
+	void _mouse_button_event(QMouseEvent* p_event, bool p_mouse_down, bool p_double_click = false);
+	void _key_event(QKeyEvent* p_event, bool p_key_down);
+
+protected:
+	virtual void enterEvent(QEvent *p_event);
+	virtual void leaveEvent(QEvent *p_event);
+	virtual void mouseMoveEvent(QMouseEvent *p_event);
+	virtual void mousePressEvent(QMouseEvent *p_event);
+	virtual void mouseReleaseEvent(QMouseEvent *p_event);
+	virtual void mouseDoubleClickEvent(QMouseEvent *p_event);
+	virtual void wheelEvent(QWheelEvent *p_event);
+	virtual void keyPressEvent(QKeyEvent *p_event);
+	virtual void keyReleaseEvent(QKeyEvent *p_event);
+	virtual void resizeEvent(QResizeEvent* p_event);
+
+	virtual void closeEvent(QCloseEvent *p_event);
 
 	/* Overriding this method prevents the
 	 * "QWidget::paintEngine: Should no longer be called" error. */

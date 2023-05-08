@@ -31,6 +31,7 @@
 #include "display_server_widget_windows.h"
 
 #include "main/main.h"
+#include "key_mapping_windows.h"
 
 #if defined(GLES3_ENABLED)
 #include "drivers/gles3/rasterizer_gles3.h"
@@ -194,46 +195,71 @@ Size2i DisplayServerWidgetWindows::window_get_min_size(WindowID p_window) const 
 
 bool initialized = false;
 
-void DisplayServerWidgetWindows::resizeEvent(QResizeEvent* event)
+
+void DisplayServerWidgetWindows::_process_key_events()
 {
-	QWidget::resizeEvent(event);
+	for (int i = 0; i < _key_event_pos; i++) {
+		KeyEvent& ke = _key_event_buffer[i];
+		
+		Ref<InputEventKey> k;
+		k.instantiate();
+		k->set_window_id(ke.window_id);
+		k->set_shift_pressed(ke.shift);
+		k->set_alt_pressed(ke.alt);
+		k->set_ctrl_pressed(ke.control);
+		k->set_meta_pressed(ke.meta);
 
-	// change the rendering content size
-	window_set_size(Size2i(event->size().width(), event->size().height()), 0);
+		k->set_pressed(ke.pressed);
 
-	// call Main::iteration function to call the engine update
-	if (main_loop_valid && !Main::is_iterating()) {
-		Main::iteration();
-	}
+		k->set_keycode((Key)KeyMappingWindows::get_keysym(ke.keycode));
+		k->set_physical_keycode((Key)KeyMappingWindows::get_keysym(ke.keycode));
+
+		k->set_unicode(ke.unicode);
+			
+		if (k->get_unicode() && _gr_mem) {
+			k->set_alt_pressed(false);
+			k->set_ctrl_pressed(false);
+		}
+
+		if (k->get_unicode() < 32) {
+			k->set_unicode(0);
+		}
+
+		k->set_echo(ke.pressed && ke.extended_key);
+
+		Input::get_singleton()->parse_input_event(k);
+
+	} 
+	_key_event_pos = 0;
 }
 
-void DisplayServerWidgetWindows::mouseMoveEvent(QMouseEvent *event) {
-	Ref<InputEventMouseMotion> mm;
-	mm.instantiate();
-
-	mm->set_window_id(0);
-	mm->set_button_mask(last_button_state);
-
-	QPoint p = mapFromGlobal(QCursor::pos());
-	Point2i c(p.x(), p.y());
-
-	mm->set_position(c);
-	mm->set_global_position(c);
-	mm->set_velocity(Vector2(0, 0));
-
-	Input::get_singleton()->parse_input_event(mm);
-}
-
-void DisplayServerWidgetWindows::mousePressEvent(QMouseEvent *event) {
+void DisplayServerWidgetWindows::_mouse_button_event(QMouseEvent *p_event, bool p_mouse_down, bool p_double_click)
+{
 	Ref<InputEventMouseButton> mb;
 	mb.instantiate();
+	if (p_event->button() == Qt::LeftButton) {
+		mb->set_button_index(MouseButton::LEFT);
+	}
+	else if (p_event->button() == Qt::RightButton) {
+		mb->set_button_index(MouseButton::RIGHT);
+	}
+	else if (p_event->button() == Qt::MiddleButton) {
+		mb->set_button_index(MouseButton::MIDDLE);
+	}
+	else {
+		return;
+	}
 	mb->set_window_id(0);
-	mb->set_pressed(true);
-	mb->set_button_index(MouseButton::LEFT);
+	mb->set_pressed(p_mouse_down);
+	mb->set_double_click(p_double_click);
+	mb->set_ctrl_pressed(_control_mem);
+	mb->set_shift_pressed(_shift_mem);
+	mb->set_alt_pressed(_alt_mem);
 
 	if (mb->is_pressed()) {
 		last_button_state.set_flag(mouse_button_to_mask(mb->get_button_index()));
-	} else {
+	}
+	else {
 		last_button_state.clear_flag(mouse_button_to_mask(mb->get_button_index()));
 	}
 	mb->set_button_mask(last_button_state);
@@ -244,25 +270,157 @@ void DisplayServerWidgetWindows::mousePressEvent(QMouseEvent *event) {
 	Input::get_singleton()->parse_input_event(mb);
 }
 
-void DisplayServerWidgetWindows::mouseReleaseEvent(QMouseEvent *event) {
+void DisplayServerWidgetWindows::_key_event(QKeyEvent *p_event, bool p_key_down)
+{
+	int key = p_event->key();
+	int modifiers = p_event->modifiers();
+	bool autoRepeat = p_event->isAutoRepeat();
+
+	if (key == Qt::Key_Shift) {
+		_shift_mem = p_key_down;
+	}
+	if (key == Qt::Key_Control) {
+		_control_mem = p_key_down;
+	}
+	if (key == Qt::Key_Alt) {
+		_alt_mem = p_key_down;
+		if (autoRepeat) {// 这是一个重复按键事件
+			_gr_mem = _alt_mem;
+			return;
+		}
+	}
+
+	int virtualKey = p_event->nativeVirtualKey();
+	WPARAM wParam = virtualKey;
+	LPARAM lParam = p_event->nativeScanCode() << 16;
+
+	KeyEvent ke;
+	ke.pressed = p_key_down;
+	ke.window_id = 0;
+	ke.shift = (key != Qt::Key_Shift) ? _shift_mem : false;
+	ke.alt = (!(key == Qt::Key_Alt && p_key_down)) ? _alt_mem : false;
+	ke.control = (key != Qt::Key_Control) ? _control_mem : false;
+	ke.meta = _meta_mem;
+	ke.keycode = virtualKey;
+	int scanCode = p_event->nativeScanCode();
+	ke.unicode = scanCode;
+	if (!autoRepeat && (scanCode == Qt::Key_unknown || scanCode >= 0xE000)) {// 处理扩展键事件
+		ke.extended_key = true;
+	}
+	_key_event_buffer[_key_event_pos++] = ke;
+}
+
+void DisplayServerWidgetWindows::enterEvent(QEvent *p_event)
+{
+}
+
+void DisplayServerWidgetWindows::leaveEvent(QEvent *p_event)
+{
+	_old_invalid = true;
+}
+
+void DisplayServerWidgetWindows::mouseMoveEvent(QMouseEvent *p_event) {
+	Ref<InputEventMouseMotion> mm;
+	mm.instantiate();
+	mm->set_window_id(0);
+	mm->set_ctrl_pressed(_control_mem);
+	mm->set_shift_pressed(_shift_mem);
+	mm->set_alt_pressed(_alt_mem);
+
+	mm->set_button_mask(last_button_state);
+
+	QPoint p = mapFromGlobal(QCursor::pos());
+	Point2i c(p.x(), p.y());
+
+	mm->set_position(c);
+	mm->set_global_position(c);
+	mm->set_velocity(Input::get_singleton()->get_last_mouse_velocity());
+
+	if (_old_invalid) {
+		_old_x = mm->get_position().x;
+		_old_y = mm->get_position().y;
+		_old_invalid = false;
+	}
+
+	mm->set_relative(Vector2(mm->get_position() - Vector2(_old_x, _old_y)));
+	_old_x = mm->get_position().x;
+	_old_y = mm->get_position().y;
+
+	Input::get_singleton()->parse_input_event(mm);
+}
+
+void DisplayServerWidgetWindows::mousePressEvent(QMouseEvent *p_event) {
+	_mouse_button_event(p_event,true);
+}
+
+void DisplayServerWidgetWindows::mouseReleaseEvent(QMouseEvent *p_event) {
+	_mouse_button_event(p_event, false);
+}
+
+void DisplayServerWidgetWindows::mouseDoubleClickEvent(QMouseEvent* p_event) {
+	_mouse_button_event(p_event, true,true);
+}
+
+void DisplayServerWidgetWindows::wheelEvent(QWheelEvent *p_event) {
 	Ref<InputEventMouseButton> mb;
 	mb.instantiate();
-	mb->set_window_id(0);
-	mb->set_pressed(false);
-	mb->set_button_index(MouseButton::LEFT);
-
+	mb->set_window_id(MAIN_WINDOW_ID);
+	mb->set_pressed(true);
+	
+	int motion = p_event->angleDelta().y();
+	if (motion > 0) {
+		mb->set_button_index(MouseButton::WHEEL_UP);
+	}
+	else {
+		mb->set_button_index(MouseButton::WHEEL_DOWN);
+	}
+	mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
 	if (mb->is_pressed()) {
 		last_button_state.set_flag(mouse_button_to_mask(mb->get_button_index()));
-	} else {
+	}
+	else {
 		last_button_state.clear_flag(mouse_button_to_mask(mb->get_button_index()));
 	}
 	mb->set_button_mask(last_button_state);
-
+	QPoint p = mapFromGlobal(QCursor::pos());
+	mb->set_position(Vector2(p.x(), p.y()));
 	Input::get_singleton()->parse_input_event(mb);
-	Input::get_singleton()->release_pressed_events();
+
+	if (mb->is_pressed() && mb->get_button_index() >= MouseButton::WHEEL_UP && mb->get_button_index() <= MouseButton::WHEEL_RIGHT) {
+		// Send release for mouse wheel.
+		Ref<InputEventMouseButton> mbd = mb->duplicate();
+		mbd->set_window_id(0);
+		last_button_state.clear_flag(mouse_button_to_mask(mbd->get_button_index()));
+		mbd->set_button_mask(last_button_state);
+		mbd->set_pressed(false);
+		Input::get_singleton()->parse_input_event(mbd);
+	}
 }
 
-void DisplayServerWidgetWindows::closeEvent(QCloseEvent* event) {
+void DisplayServerWidgetWindows::keyPressEvent(QKeyEvent *p_event)
+{
+	_key_event(p_event, true);
+}
+
+void DisplayServerWidgetWindows::keyReleaseEvent(QKeyEvent *p_event)
+{
+	_key_event(p_event, false);
+}
+
+void DisplayServerWidgetWindows::resizeEvent(QResizeEvent* p_event)
+{
+	QWidget::resizeEvent(p_event);
+
+	// change the rendering content size
+	window_set_size(Size2i(p_event->size().width(), p_event->size().height()), 0);
+
+	// call Main::iteration function to call the engine update
+	if (main_loop_valid && !Main::is_iterating()) {
+		Main::iteration();
+	}
+}
+
+void DisplayServerWidgetWindows::closeEvent(QCloseEvent *p_event) {
 
 	// notify the engine to exit
 	_send_window_event(event_callback, WINDOW_EVENT_CLOSE_REQUEST);
@@ -394,6 +552,9 @@ void DisplayServerWidgetWindows::process_events() {
 	if (!main_loop_valid) {
 		main_loop_valid = true;
 	}
+
+	_process_key_events();
+	Input::get_singleton()->flush_buffered_events();
 }
 
 Vector<String> DisplayServerWidgetWindows::get_rendering_drivers_func() {
@@ -445,6 +606,10 @@ typedef enum _SHC_PROCESS_DPI_AWARENESS {
 
 DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i *p_position, const Vector2i &p_resolution, int p_screen, Error &r_error, QWidget *parent) //:
 	: QWidget(parent) {
+	KeyMappingWindows::initialize();
+	_old_invalid = true;
+	_old_x = 0;
+	_old_y = 0;
 
 	// These widget attributes are important. This lets Godot take over what's
 	// drawn onto the widget's screen space. 
@@ -454,6 +619,8 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 	// HOWEVER, this important attribute stops the "paintEvent" slot from being called,
 	// thus we'll need to write our own method that paints to the screen every frame.
 	setAttribute(Qt::WA_PaintOnScreen);
+
+	setMouseTracking(true);
 
 	// re-size the widget size to the default godot window size
 	resize(1152, 648);

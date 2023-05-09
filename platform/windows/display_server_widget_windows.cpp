@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "display_server_widget_windows.h"
+#include "core/os/thread_safe.h"
 
 #include "main/main.h"
 #include "key_mapping_windows.h"
@@ -39,13 +40,29 @@
 
 #include <QResizeEvent>
 #include <QMouseEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 bool DisplayServerWidgetWindows::has_feature(Feature p_feature) const {
 	switch (p_feature) {
-		case FEATURE_MOUSE:
-			return true;
-		default:
-			return false;
+	case FEATURE_SUBWINDOWS:
+	case FEATURE_TOUCHSCREEN:
+	case FEATURE_MOUSE:
+	case FEATURE_MOUSE_WARP:
+	case FEATURE_CLIPBOARD:
+	case FEATURE_CURSOR_SHAPE:
+	case FEATURE_CUSTOM_CURSOR_SHAPE:
+	case FEATURE_IME:
+	case FEATURE_WINDOW_TRANSPARENCY:
+	case FEATURE_HIDPI:
+	case FEATURE_ICON:
+	case FEATURE_NATIVE_ICON:
+	case FEATURE_SWAP_BUFFERS:
+	case FEATURE_KEEP_SCREEN_ON:
+	case FEATURE_TEXT_TO_SPEECH:
+		return true;
+	default:
+		return false;
 	}
 }
 
@@ -54,10 +71,14 @@ String DisplayServerWidgetWindows::get_name() const {
 }
 
 void DisplayServerWidgetWindows::mouse_set_mode(MouseMode p_mode) {
-	// not called with small test
-	if (p_mode == MOUSE_MODE_CAPTURED || p_mode == MOUSE_MODE_CONFINED || p_mode == MOUSE_MODE_CONFINED_HIDDEN) {
-	
+
+	if (_mouse_mode == p_mode) {
+		return;
 	}
+
+	_mouse_mode = p_mode;
+
+	_set_mouse_mode_impl(p_mode);
 }
 
 Point2i DisplayServerWidgetWindows::mouse_get_position() const {
@@ -109,6 +130,11 @@ Vector<DisplayServer::WindowID> DisplayServerWidgetWindows::get_window_list() co
 	return ret;
 }
 
+DisplayServer::WindowID DisplayServerWidgetWindows::create_sub_window(WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Rect2i& p_rect)
+{
+	return -1;
+}
+
 void DisplayServerWidgetWindows::show_window(WindowID p_window) {
 	// QWidget related show function
 	if (isVisible()) {
@@ -117,7 +143,9 @@ void DisplayServerWidgetWindows::show_window(WindowID p_window) {
 }
 
 void DisplayServerWidgetWindows::window_attach_instance_id(ObjectID p_instance, WindowID p_window) {
-	// AAA
+
+	ERR_FAIL_COND(!_windows.has(p_window));
+	_windows[p_window].instance_id = p_instance;
 }
 
 ObjectID DisplayServerWidgetWindows::window_get_attached_instance_id(WindowID p_window) const {
@@ -128,23 +156,30 @@ ObjectID DisplayServerWidgetWindows::window_get_attached_instance_id(WindowID p_
 
 void DisplayServerWidgetWindows::window_set_rect_changed_callback(const Callable &p_callable, WindowID p_window) {
 
-	rect_changed_callback = p_callable;
+	ERR_FAIL_COND(!_windows.has(p_window));
+	_windows[p_window].rect_changed_callback = p_callable;
 }
 
 void DisplayServerWidgetWindows::window_set_window_event_callback(const Callable &p_callable, WindowID p_window) {
 
-	event_callback = p_callable;
+	ERR_FAIL_COND(!_windows.has(p_window));
+	_windows[p_window].event_callback = p_callable;
 }
 
 void DisplayServerWidgetWindows::window_set_input_event_callback(const Callable &p_callable, WindowID p_window) {
 
-	input_event_callback = p_callable;
+	ERR_FAIL_COND(!_windows.has(p_window));
+	_windows[p_window].input_event_callback = p_callable;
 }
 
 void DisplayServerWidgetWindows::window_set_input_text_callback(const Callable &p_callable, WindowID p_window) {
+	ERR_FAIL_COND(!_windows.has(p_window));
+	_windows[p_window].input_text_callback = p_callable;
 }
 
 void DisplayServerWidgetWindows::window_set_drop_files_callback(const Callable &p_callable, WindowID p_window) {
+	ERR_FAIL_COND(!_windows.has(p_window));
+	_windows[p_window].drop_files_callback = p_callable;
 }
 
 void DisplayServerWidgetWindows::window_set_title(const String &p_title, WindowID p_window) {
@@ -192,9 +227,6 @@ Size2i DisplayServerWidgetWindows::window_get_min_size(WindowID p_window) const 
 	Size2i min_size;
 	return min_size;
 }
-
-bool initialized = false;
-
 
 void DisplayServerWidgetWindows::_process_key_events()
 {
@@ -274,7 +306,7 @@ void DisplayServerWidgetWindows::_key_event(QKeyEvent *p_event, bool p_key_down)
 {
 	int key = p_event->key();
 	int modifiers = p_event->modifiers();
-	bool autoRepeat = p_event->isAutoRepeat();
+	bool auto_repeat = p_event->isAutoRepeat();
 
 	if (key == Qt::Key_Shift) {
 		_shift_mem = p_key_down;
@@ -284,14 +316,14 @@ void DisplayServerWidgetWindows::_key_event(QKeyEvent *p_event, bool p_key_down)
 	}
 	if (key == Qt::Key_Alt) {
 		_alt_mem = p_key_down;
-		if (autoRepeat) {// 这是一个重复按键事件
+		if (auto_repeat) {// 这是一个重复按键事件
 			_gr_mem = _alt_mem;
 			return;
 		}
 	}
 
-	int virtualKey = p_event->nativeVirtualKey();
-	WPARAM wParam = virtualKey;
+	int virtual_key = p_event->nativeVirtualKey();
+	WPARAM wParam = virtual_key;
 	LPARAM lParam = p_event->nativeScanCode() << 16;
 
 	KeyEvent ke;
@@ -301,13 +333,20 @@ void DisplayServerWidgetWindows::_key_event(QKeyEvent *p_event, bool p_key_down)
 	ke.alt = (!(key == Qt::Key_Alt && p_key_down)) ? _alt_mem : false;
 	ke.control = (key != Qt::Key_Control) ? _control_mem : false;
 	ke.meta = _meta_mem;
-	ke.keycode = virtualKey;
-	int scanCode = p_event->nativeScanCode();
-	ke.unicode = scanCode;
-	if (!autoRepeat && (scanCode == Qt::Key_unknown || scanCode >= 0xE000)) {// 处理扩展键事件
+	ke.keycode = virtual_key;
+	int scan_code = p_event->nativeScanCode();
+	ke.unicode = scan_code;
+	if (!auto_repeat && (scan_code == Qt::Key_unknown || scan_code >= 0xE000)) {// 处理扩展键事件
 		ke.extended_key = true;
 	}
 	_key_event_buffer[_key_event_pos++] = ke;
+}
+
+void DisplayServerWidgetWindows::activateEvent(QEvent* p_event)
+{
+	if (p_event->type() == QEvent::WindowActivate) {
+		
+	}
 }
 
 void DisplayServerWidgetWindows::enterEvent(QEvent *p_event)
@@ -407,23 +446,92 @@ void DisplayServerWidgetWindows::keyReleaseEvent(QKeyEvent *p_event)
 	_key_event(p_event, false);
 }
 
+void DisplayServerWidgetWindows::dragEnterEvent(QDragEnterEvent* p_event)
+{
+	if (p_event->mimeData()->hasUrls()) {
+		p_event->acceptProposedAction();
+	}
+}
+
+void DisplayServerWidgetWindows::dropEvent(QDropEvent* p_event)
+{
+	const QMimeData* mime_data = p_event->mimeData();
+	if (mime_data->hasUrls()) {
+		QList<QUrl> url_list = mime_data->urls();
+
+		Vector<String> files;
+		foreach(QUrl url, url_list) {
+			QString file_path = url.toLocalFile();
+			files.push_back(file_path.toStdWString().c_str());
+		}
+		WindowID window_id = MAIN_WINDOW_ID;
+
+		WindowData& wd = _windows[window_id];
+		if (files.size() && !wd.drop_files_callback.is_null()) {
+			Variant v = files;
+			Variant* vp = &v;
+			Variant ret;
+			Callable::CallError ce;
+			wd.drop_files_callback.callp((const Variant**)&vp, 1, ret, ce);
+		}
+	}
+}
+
 void DisplayServerWidgetWindows::resizeEvent(QResizeEvent* p_event)
 {
-	QWidget::resizeEvent(p_event);
+	WindowID window_id = MAIN_WINDOW_ID;
+	WindowData& wd = _windows[window_id];
 
-	// change the rendering content size
-	window_set_size(Size2i(p_event->size().width(), p_event->size().height()), 0);
+	int w = p_event->size().width();
+	int h = p_event->size().height();
 
-	// call Main::iteration function to call the engine update
-	if (main_loop_valid && !Main::is_iterating()) {
-		Main::iteration();
+	if (w == wd.width && h == wd.height) {
+		return;
+	}
+
+	wd.width = w;
+	wd.height = h;
+
+	wd.maximized = false;
+	wd.minimized = false;
+	wd.fullscreen = false;
+
+	if (windowState() & Qt::WindowMaximized) {
+		wd.maximized = true;
+	}
+	if (windowState() & Qt::WindowMinimized) {
+		wd.minimized = true;
+	}
+	if (windowState() & Qt::WindowFullScreen) {
+		wd.fullscreen = true;
+	}
+
+	bool rect_changed = true;
+#if defined(VULKAN_ENABLED)
+	if (context_vulkan && wd.context_created) {
+		// Note: Trigger resize event to update swapchains when window is minimized/restored, even if size is not changed.
+		context_vulkan->window_resize(window_id, w, h);
+	}
+#endif
+
+	if (rect_changed) {
+		if (!wd.rect_changed_callback.is_null()) {
+			Variant size = Rect2i(wd.last_pos.x, wd.last_pos.y, wd.width, wd.height);
+			const Variant* args[] = { &size };
+			Variant ret;
+			Callable::CallError ce;
+			wd.rect_changed_callback.callp(args, 1, ret, ce);
+		}
 	}
 }
 
 void DisplayServerWidgetWindows::closeEvent(QCloseEvent *p_event) {
 
-	// notify the engine to exit
-	_send_window_event(event_callback, WINDOW_EVENT_CLOSE_REQUEST);
+	WindowID window_id = MAIN_WINDOW_ID;
+
+	WindowData& wd = _windows[window_id];
+
+	_send_window_event(wd, WINDOW_EVENT_CLOSE_REQUEST);
 }
 
 /* Override default system paint engine to prevent errors. */
@@ -431,14 +539,19 @@ QPaintEngine *DisplayServerWidgetWindows::paintEngine() const {
 	return reinterpret_cast<QPaintEngine *>(0);
 }
 
-void DisplayServerWidgetWindows::_send_window_event(const Callable& event_callback, WindowEvent p_event) {
-	if (!event_callback.is_null()) {
+void DisplayServerWidgetWindows::_send_window_event(const WindowData& wd, WindowEvent p_event) {
+	if (!wd.event_callback.is_null()) {
 		Variant event = int(p_event);
 		Variant *eventp = &event;
 		Variant ret;
 		Callable::CallError ce;
-		event_callback.callp((const Variant **)&eventp, 1, ret, ce);
+		wd.event_callback.callp((const Variant **)&eventp, 1, ret, ce);
 	}
+}
+
+void DisplayServerWidgetWindows::_set_mouse_mode_impl(MouseMode p_mode)
+{
+	
 }
 
 void DisplayServerWidgetWindows::_dispatch_input_events(const Ref<InputEvent> &p_event) {
@@ -456,43 +569,77 @@ void DisplayServerWidgetWindows::_dispatch_input_event(const Ref<InputEvent> &p_
 	Variant *evp = &ev;
 	Variant ret;
 	Callable::CallError ce;
+
 	{
-		if (input_event_callback.is_valid()) {
-			input_event_callback.callp((const Variant **)&evp, 1, ret, ce);
+		List<WindowID>::Element* E = _popup_list.back();
+		if (E && Object::cast_to<InputEventKey>(*p_event)) {
+			// Redirect keyboard input to active popup.
+			if (_windows.has(E->get())) {
+				Callable callable = _windows[E->get()].input_event_callback;
+				if (callable.is_valid()) {
+					callable.callp((const Variant**)&evp, 1, ret, ce);
+				}
+			}
+			in_dispatch_input_event = false;
+			return;
 		}
 	}
+
+	Ref<InputEventFromWindow> event_from_window = p_event;
+	if (event_from_window.is_valid() && event_from_window->get_window_id() != INVALID_WINDOW_ID) {
+		// Send to a single window.
+		if (_windows.has(event_from_window->get_window_id())) {
+			Callable callable = _windows[event_from_window->get_window_id()].input_event_callback;
+			if (callable.is_valid()) {
+				callable.callp((const Variant**)&evp, 1, ret, ce);
+			}
+		}
+	}
+	else {
+		// Send to all windows.
+		for (const KeyValue<WindowID, WindowData>& E : _windows) {
+			const Callable callable = E.value.input_event_callback;
+			if (callable.is_valid()) {
+				callable.callp((const Variant**)&evp, 1, ret, ce);
+			}
+		}
+	}
+
 	in_dispatch_input_event = false;
 
 }
 
 void DisplayServerWidgetWindows::window_set_size(const Size2i p_size, WindowID p_window) {
 	// AAA
+	ERR_FAIL_COND(!_windows.has(p_window));
+	WindowData& wd = _windows[p_window];
 
-	if (p_size.width != size().width() || p_size.height != size().height()) {
-		resize(p_size.width, p_size.height);
+	if (wd.fullscreen || wd.maximized) {
 		return;
 	}
 
+	int w = p_size.width;
+	int h = p_size.height;
+
+
+	if (w == wd.width && h == wd.height) {
+		return;
+	}
+	wd.width = w;
+	wd.height = h;
 	
 #if defined(VULKAN_ENABLED)
 	if (context_vulkan) {
-		context_vulkan->window_resize(p_window, p_size.width, p_size.height);
+		context_vulkan->window_resize(p_window, w, h);
 	}
 #endif
 #if defined(GLES3_ENABLED)
 	if (gl_manager) {
-		gl_manager->window_resize(p_window, size().width(),size().height());
+		gl_manager->window_resize(p_window, w, h);
 	}
 #endif
 
-	if (!rect_changed_callback.is_null()) {
-		Variant size = Rect2i(geometry().x(), geometry().y(), geometry().width(), geometry().height());
-		const Variant *args[] = { &size };
-		Variant ret;
-		Callable::CallError ce;
-		rect_changed_callback.callp(args, 1, ret, ce);
-	}
-
+	resize(w, h);
 }
 
 Size2i DisplayServerWidgetWindows::window_get_size(WindowID p_window) const {
@@ -541,6 +688,81 @@ bool DisplayServerWidgetWindows::window_can_draw(WindowID p_window) const {
 
 bool DisplayServerWidgetWindows::can_any_window_draw() const {
 	return isVisible();
+}
+
+void DisplayServerWidgetWindows::cursor_set_shape(CursorShape p_shape)
+{
+	ERR_FAIL_INDEX(p_shape, CURSOR_MAX);
+
+	if (_cursor_shape == p_shape) {
+		return;
+	}
+
+	if (_mouse_mode != MOUSE_MODE_VISIBLE && _mouse_mode != MOUSE_MODE_CONFINED) {
+		_cursor_shape = p_shape;
+		return;
+	}
+	static const QCursor win_cursors[CURSOR_MAX] = {
+		Qt::ArrowCursor,
+		Qt::IBeamCursor,
+		Qt::PointingHandCursor,
+		Qt::CrossCursor,
+		Qt::WaitCursor,
+		Qt::BusyCursor,
+		Qt::SizeAllCursor,
+		Qt::ArrowCursor,
+		Qt::ForbiddenCursor,
+		Qt::SizeVerCursor,
+		Qt::SizeHorCursor,
+		Qt::SizeBDiagCursor,
+		Qt::SizeFDiagCursor,
+		Qt::SizeVerCursor,
+		Qt::SizeVerCursor,
+		Qt::SizeHorCursor,
+		Qt::WhatsThisCursor
+	};
+
+	QCursor cursor(win_cursors[p_shape]);
+	setCursor(cursor);
+
+	_cursor_shape = p_shape;
+}
+
+DisplayServer::CursorShape DisplayServerWidgetWindows::cursor_get_shape() const
+{
+	return _cursor_shape;
+}
+
+void DisplayServerWidgetWindows::window_set_vsync_mode(DisplayServer::VSyncMode p_vsync_mode, WindowID p_window)
+{
+#if defined(VULKAN_ENABLED)
+		if (context_vulkan) {
+			context_vulkan->set_vsync_mode(p_window, p_vsync_mode);
+		}
+#endif
+
+#if defined(GLES3_ENABLED)
+	if (gl_manager) {
+		gl_manager->set_use_vsync(p_window, p_vsync_mode != DisplayServer::VSYNC_DISABLED);
+	}
+#endif
+}
+
+DisplayServer::VSyncMode DisplayServerWidgetWindows::window_get_vsync_mode(WindowID p_window) const
+{
+#if defined(VULKAN_ENABLED)
+		if (context_vulkan) {
+			return context_vulkan->get_vsync_mode(p_window);
+		}
+#endif
+
+#if defined(GLES3_ENABLED)
+	if (gl_manager) {
+		return gl_manager->is_using_vsync(p_window) ? DisplayServer::VSYNC_ENABLED : DisplayServer::VSYNC_DISABLED;
+	}
+#endif
+
+	return DisplayServer::VSYNC_ENABLED;
 }
 
 bool DisplayServerWidgetWindows::get_swap_cancel_ok() {
@@ -621,9 +843,13 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 	setAttribute(Qt::WA_PaintOnScreen);
 
 	setMouseTracking(true);
+	setAcceptDrops(true);
 
 	// re-size the widget size to the default godot window size
 	resize(1152, 648);
+
+	int width = size().width();
+	int height = size().height();
 
 	rendering_driver = p_rendering_driver;
 
@@ -640,6 +866,39 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 			}
 		}
 	}
+
+	WindowID id = _window_id_counter;
+	WindowData& wd = _windows[id];
+
+	if (p_mode == WINDOW_MODE_FULLSCREEN || p_mode == WINDOW_MODE_EXCLUSIVE_FULLSCREEN) {
+		wd.fullscreen = true;
+		if (p_mode == WINDOW_MODE_FULLSCREEN) {
+			wd.multiwindow_fs = true;
+		}
+	}
+	if (p_mode != WINDOW_MODE_FULLSCREEN && p_mode != WINDOW_MODE_EXCLUSIVE_FULLSCREEN) {
+		wd.pre_fs_valid = true;
+	}
+	if (p_mode == WINDOW_MODE_MAXIMIZED) {
+		wd.maximized = true;
+		wd.minimized = false;
+	}
+
+	if (p_mode == WINDOW_MODE_MINIMIZED) {
+		wd.maximized = false;
+		wd.minimized = true;
+	}
+
+	wd.last_pressure = 0;
+	wd.last_pressure_update = 0;
+	wd.last_tilt = Vector2();
+
+	//wd.last_pos = p_rect.position;
+	wd.width = width;
+	wd.height = height;
+
+	_window_id_counter++;
+
 
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
@@ -671,18 +930,16 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 	}
 #endif
 
-	int width = size().width();
-	int height = size().height();
 
 #ifdef VULKAN_ENABLED
 	if (context_vulkan) {
 		if (context_vulkan->window_create(0, DisplayServer::VSYNC_ENABLED, (HWND)winId(), 0, width, height) != OK) {
 			memdelete(context_vulkan);
 			context_vulkan = nullptr;
-			//windows.erase(0);
-			//ERR_FAIL_V_MSG(INVALID_WINDOW_ID, "Failed to create Vulkan Window.");
+			_windows.erase(0);
+			ERR_PRINT("Failed to create Vulkan Window.");
 		}
-		//wd.context_created = true;
+		wd.context_created = true;
 		context_vulkan->set_vsync_mode(0, DisplayServer::VSYNC_ENABLED);
 	}
 #endif
@@ -692,8 +949,8 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 		if (gl_manager->window_create(0, (HWND)winId(), 0, size().width(), size().height()) != OK) {
 			memdelete(gl_manager);
 			gl_manager = nullptr;
-			//windows.erase(0);
-			//ERR_FAIL_V_MSG(INVALID_WINDOW_ID, "Failed to create an OpenGL window.");
+			_windows.erase(0);
+			ERR_PRINT("Failed to create an OpenGL window.");
 		}
 		window_set_vsync_mode(p_vsync_mode, 0);
 	}
@@ -745,3 +1002,4 @@ DisplayServerWidgetWindows::~DisplayServerWidgetWindows() {
 #endif
 
 }
+

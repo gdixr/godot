@@ -1,6 +1,7 @@
 #ifndef DISPLAY_SERVER_WIDGET_H
 #define DISPLAY_SERVER_WIDGET_H
 
+#include "core/os/thread_safe.h"
 #include "servers/display_server.h"
 #include "servers/rendering_server.h"
 
@@ -16,12 +17,10 @@
 #include "gl_manager_windows.h"
 #endif
 
-#include <QWidget>
+class GdiWindow;
 
-class DisplayServerWidgetWindows : public QWidget, DisplayServer {
-
-	Q_OBJECT
-
+class DisplayServerWidgetWindows : public DisplayServer {
+	_THREAD_SAFE_CLASS_
 #if defined(GLES3_ENABLED)
 	GLManager_Windows *gl_manager = nullptr;
 #endif
@@ -86,74 +85,19 @@ class DisplayServerWidgetWindows : public QWidget, DisplayServer {
 		Rect2i parent_safe_rect;
 	};
 
-	WindowID _window_id_counter = MAIN_WINDOW_ID;
-	RBMap<WindowID, WindowData> _windows;
-
 	String rendering_driver;
-	BitField<MouseButtonMask> last_button_state;
 
 	// update flag
 	bool main_loop_valid = false;
-	bool in_dispatch_input_event = false;
-
-	List<WindowID> _popup_list;
-
-	struct KeyEvent {
-		WindowID window_id;
-		bool alt, shift, control, meta;
-		bool pressed;
-		int unicode;
-		int keycode;
-		bool extended_key = false;
-	};
-
-	KeyEvent _key_event_buffer[512];
-	int _key_event_pos = 0;
-
-	bool _old_invalid;
-	int _old_x, _old_y;
-
-	MouseMode _mouse_mode = MOUSE_MODE_VISIBLE;
-	bool _alt_mem = false;
-	bool _gr_mem = false;
-	bool _shift_mem = false;
-	bool _control_mem = false;
-	bool _meta_mem = false;
-	bool _drop_events = false;
-
-	CursorShape _cursor_shape = CursorShape::CURSOR_ARROW;
-	RBMap<CursorShape, Vector<Variant>> cursors_cache;
-
 
 
 private:
 
 	void _set_mouse_mode_impl(MouseMode p_mode);
 
-	void _process_key_events();
-	void _mouse_button_event(QMouseEvent* p_event, bool p_mouse_down, bool p_double_click = false);
-	void _key_event(QKeyEvent* p_event, bool p_key_down);
 
 
 protected:
-	virtual void activateEvent(QEvent *p_event);
-	virtual void enterEvent(QEvent *p_event);
-	virtual void leaveEvent(QEvent *p_event);
-	virtual void mouseMoveEvent(QMouseEvent *p_event) override;
-	virtual void mousePressEvent(QMouseEvent *p_event) override;
-	virtual void mouseReleaseEvent(QMouseEvent *p_event) override;
-	virtual void mouseDoubleClickEvent(QMouseEvent *p_event) override;
-	virtual void wheelEvent(QWheelEvent *p_event) override;
-	virtual void keyPressEvent(QKeyEvent *p_event) override;
-	virtual void keyReleaseEvent(QKeyEvent *p_event) override;
-	virtual void dragEnterEvent(QDragEnterEvent *p_event) override;
-	virtual void dropEvent(QDropEvent *p_event) override;
-	virtual void resizeEvent(QResizeEvent *p_event) override;
-	virtual void closeEvent(QCloseEvent *p_event) override;
-
-	/* Overriding this method prevents the
-	 * "QWidget::paintEngine: Should no longer be called" error. */
-	QPaintEngine *paintEngine() const override;
 
 	void _send_window_event(const WindowData& wd, WindowEvent p_event);
 
@@ -161,6 +105,9 @@ protected:
 	void _dispatch_input_event(const Ref<InputEvent> &p_event);
 
 public:
+
+	void resize(int p_width, int p_height);
+
 	virtual bool has_feature(Feature p_feature) const override;
 	virtual String get_name() const override;
 
@@ -238,12 +185,13 @@ public:
 
 	virtual bool get_swap_cancel_ok() override;
 	virtual void process_events() override;
+	virtual void process_events_end() override;
 
 	static DisplayServer *create_func(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i *p_position, const Vector2i &p_resolution, int p_screen, Error &r_error);
 	static Vector<String> get_rendering_drivers_func();
 	static void register_widget_driver();
 
-	DisplayServerWidgetWindows(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i *p_position, const Vector2i &p_resolution, int p_screen, Error &r_error, QWidget *parent = NULL);
+	DisplayServerWidgetWindows(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i *p_position, const Vector2i &p_resolution, int p_screen, Error &r_error);
 	virtual ~DisplayServerWidgetWindows();
 };
 

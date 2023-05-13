@@ -30,9 +30,9 @@
 
 #ifndef VULKAN_CONTEXT_H
 #define VULKAN_CONTEXT_H
-
 #include "core/error/error_list.h"
 #include "core/os/mutex.h"
+#include "core/os/thread_safe.h"
 #include "core/string/ustring.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/rb_map.h"
@@ -49,6 +49,7 @@
 #include "vulkan_hooks.h"
 
 class VulkanContext {
+	_THREAD_SAFE_CLASS_
 public:
 	struct SubgroupCapabilities {
 		uint32_t size;

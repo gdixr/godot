@@ -29,19 +29,29 @@
 /**************************************************************************/
 
 #include "display_server_widget_windows.h"
-#include "core/os/thread_safe.h"
-
+#include "gdi_window.h"
 #include "main/main.h"
 #include "key_mapping_windows.h"
-
 #if defined(GLES3_ENABLED)
 #include "drivers/gles3/rasterizer_gles3.h"
 #endif
+bool has_change = false;
+int has_change_width = 1;
+int has_change_height = 1;
+void DisplayServerWidgetWindows::resize(int p_width, int p_height)
+{
+	has_change = true;
+	has_change_width = p_width;
+	has_change_height = p_height;
+//  _THREAD_SAFE_METHOD_
+//#if defined(VULKAN_ENABLED)
+//	if (context_vulkan) {
+//		// Note: Trigger resize event to update swapchains when window is minimized/restored, even if size is not changed.
+//		context_vulkan->window_resize(0, has_change_width, has_change_height);
+//	}
+//#endif
 
-#include <QResizeEvent>
-#include <QMouseEvent>
-#include <QDropEvent>
-#include <QMimeData>
+}
 
 bool DisplayServerWidgetWindows::has_feature(Feature p_feature) const {
 	switch (p_feature) {
@@ -71,24 +81,15 @@ String DisplayServerWidgetWindows::get_name() const {
 }
 
 void DisplayServerWidgetWindows::mouse_set_mode(MouseMode p_mode) {
-
-	if (_mouse_mode == p_mode) {
-		return;
-	}
-
-	_mouse_mode = p_mode;
-
-	_set_mouse_mode_impl(p_mode);
+	QtEventServer::get_singleton()->mouse_set_mode(p_mode);
 }
 
 Point2i DisplayServerWidgetWindows::mouse_get_position() const {
-
-	QPoint p = mapFromGlobal(QCursor::pos());
-	return Point2i(p.x(), p.y());
+	return QtEventServer::get_singleton()->mouse_get_position();
 }
 
 BitField<MouseButtonMask> DisplayServerWidgetWindows::mouse_get_button_state() const {
-	return last_button_state;
+	return QtEventServer::get_singleton()->mouse_get_button_state();
 }
 
 // AAAA
@@ -136,16 +137,12 @@ DisplayServer::WindowID DisplayServerWidgetWindows::create_sub_window(WindowMode
 }
 
 void DisplayServerWidgetWindows::show_window(WindowID p_window) {
-	// QWidget related show function
-	if (isVisible()) {
-		show();
-	}
+	QtEventServer::get_singleton()->get_window(MAIN_WINDOW_ID)->show_window();
 }
 
 void DisplayServerWidgetWindows::window_attach_instance_id(ObjectID p_instance, WindowID p_window) {
-
-	ERR_FAIL_COND(!_windows.has(p_window));
-	_windows[p_window].instance_id = p_instance;
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	//_windows[p_window].instance_id = p_instance;
 }
 
 ObjectID DisplayServerWidgetWindows::window_get_attached_instance_id(WindowID p_window) const {
@@ -155,31 +152,28 @@ ObjectID DisplayServerWidgetWindows::window_get_attached_instance_id(WindowID p_
 }
 
 void DisplayServerWidgetWindows::window_set_rect_changed_callback(const Callable &p_callable, WindowID p_window) {
-
-	ERR_FAIL_COND(!_windows.has(p_window));
-	_windows[p_window].rect_changed_callback = p_callable;
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->set_rect_changed_callback(p_callable);
 }
 
 void DisplayServerWidgetWindows::window_set_window_event_callback(const Callable &p_callable, WindowID p_window) {
-
-	ERR_FAIL_COND(!_windows.has(p_window));
-	_windows[p_window].event_callback = p_callable;
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->set_window_event_callback(p_callable);
 }
 
 void DisplayServerWidgetWindows::window_set_input_event_callback(const Callable &p_callable, WindowID p_window) {
-
-	ERR_FAIL_COND(!_windows.has(p_window));
-	_windows[p_window].input_event_callback = p_callable;
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->set_input_event_callback(p_callable);
 }
 
 void DisplayServerWidgetWindows::window_set_input_text_callback(const Callable &p_callable, WindowID p_window) {
-	ERR_FAIL_COND(!_windows.has(p_window));
-	_windows[p_window].input_text_callback = p_callable;
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->set_input_text_callback(p_callable);
 }
 
 void DisplayServerWidgetWindows::window_set_drop_files_callback(const Callable &p_callable, WindowID p_window) {
-	ERR_FAIL_COND(!_windows.has(p_window));
-	_windows[p_window].drop_files_callback = p_callable;
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->set_drop_files_callback(p_callable);
 }
 
 void DisplayServerWidgetWindows::window_set_title(const String &p_title, WindowID p_window) {
@@ -205,7 +199,6 @@ void DisplayServerWidgetWindows::window_set_position(const Point2i &p_position, 
 
 DisplayServer::WindowID DisplayServerWidgetWindows::get_window_at_screen_position(const Point2i &p_position) const {
 	WindowID id = 0;
-
 	return id;
 }
 
@@ -228,316 +221,6 @@ Size2i DisplayServerWidgetWindows::window_get_min_size(WindowID p_window) const 
 	return min_size;
 }
 
-void DisplayServerWidgetWindows::_process_key_events()
-{
-	for (int i = 0; i < _key_event_pos; i++) {
-		KeyEvent& ke = _key_event_buffer[i];
-		
-		Ref<InputEventKey> k;
-		k.instantiate();
-		k->set_window_id(ke.window_id);
-		k->set_shift_pressed(ke.shift);
-		k->set_alt_pressed(ke.alt);
-		k->set_ctrl_pressed(ke.control);
-		k->set_meta_pressed(ke.meta);
-
-		k->set_pressed(ke.pressed);
-
-		k->set_keycode((Key)KeyMappingWindows::get_keysym(ke.keycode));
-		k->set_physical_keycode((Key)KeyMappingWindows::get_keysym(ke.keycode));
-
-		k->set_unicode(ke.unicode);
-			
-		if (k->get_unicode() && _gr_mem) {
-			k->set_alt_pressed(false);
-			k->set_ctrl_pressed(false);
-		}
-
-		if (k->get_unicode() < 32) {
-			k->set_unicode(0);
-		}
-
-		k->set_echo(ke.pressed && ke.extended_key);
-
-		Input::get_singleton()->parse_input_event(k);
-
-	} 
-	_key_event_pos = 0;
-}
-
-void DisplayServerWidgetWindows::_mouse_button_event(QMouseEvent *p_event, bool p_mouse_down, bool p_double_click)
-{
-	Ref<InputEventMouseButton> mb;
-	mb.instantiate();
-	if (p_event->button() == Qt::LeftButton) {
-		mb->set_button_index(MouseButton::LEFT);
-	}
-	else if (p_event->button() == Qt::RightButton) {
-		mb->set_button_index(MouseButton::RIGHT);
-	}
-	else if (p_event->button() == Qt::MiddleButton) {
-		mb->set_button_index(MouseButton::MIDDLE);
-	}
-	else {
-		return;
-	}
-	mb->set_window_id(0);
-	mb->set_pressed(p_mouse_down);
-	mb->set_double_click(p_double_click);
-	mb->set_ctrl_pressed(_control_mem);
-	mb->set_shift_pressed(_shift_mem);
-	mb->set_alt_pressed(_alt_mem);
-
-	if (mb->is_pressed()) {
-		last_button_state.set_flag(mouse_button_to_mask(mb->get_button_index()));
-	}
-	else {
-		last_button_state.clear_flag(mouse_button_to_mask(mb->get_button_index()));
-	}
-	mb->set_button_mask(last_button_state);
-
-	QPoint p = mapFromGlobal(QCursor::pos());
-	mb->set_position(Vector2(p.x(), p.y()));
-
-	Input::get_singleton()->parse_input_event(mb);
-}
-
-void DisplayServerWidgetWindows::_key_event(QKeyEvent *p_event, bool p_key_down)
-{
-	int key = p_event->key();
-	int modifiers = p_event->modifiers();
-	bool auto_repeat = p_event->isAutoRepeat();
-
-	if (key == Qt::Key_Shift) {
-		_shift_mem = p_key_down;
-	}
-	if (key == Qt::Key_Control) {
-		_control_mem = p_key_down;
-	}
-	if (key == Qt::Key_Alt) {
-		_alt_mem = p_key_down;
-		if (auto_repeat) {// 这是一个重复按键事件
-			_gr_mem = _alt_mem;
-			return;
-		}
-	}
-
-	int virtual_key = p_event->nativeVirtualKey();
-	WPARAM wParam = virtual_key;
-	LPARAM lParam = p_event->nativeScanCode() << 16;
-
-	KeyEvent ke;
-	ke.pressed = p_key_down;
-	ke.window_id = 0;
-	ke.shift = (key != Qt::Key_Shift) ? _shift_mem : false;
-	ke.alt = (!(key == Qt::Key_Alt && p_key_down)) ? _alt_mem : false;
-	ke.control = (key != Qt::Key_Control) ? _control_mem : false;
-	ke.meta = _meta_mem;
-	ke.keycode = virtual_key;
-	int scan_code = p_event->nativeScanCode();
-	ke.unicode = scan_code;
-	if (!auto_repeat && (scan_code == Qt::Key_unknown || scan_code >= 0xE000)) {// 处理扩展键事件
-		ke.extended_key = true;
-	}
-	_key_event_buffer[_key_event_pos++] = ke;
-}
-
-void DisplayServerWidgetWindows::activateEvent(QEvent* p_event)
-{
-	if (p_event->type() == QEvent::WindowActivate) {
-		
-	}
-}
-
-void DisplayServerWidgetWindows::enterEvent(QEvent *p_event)
-{
-}
-
-void DisplayServerWidgetWindows::leaveEvent(QEvent *p_event)
-{
-	_old_invalid = true;
-}
-
-void DisplayServerWidgetWindows::mouseMoveEvent(QMouseEvent *p_event) {
-	Ref<InputEventMouseMotion> mm;
-	mm.instantiate();
-	mm->set_window_id(0);
-	mm->set_ctrl_pressed(_control_mem);
-	mm->set_shift_pressed(_shift_mem);
-	mm->set_alt_pressed(_alt_mem);
-
-	mm->set_button_mask(last_button_state);
-
-	QPoint p = mapFromGlobal(QCursor::pos());
-	Point2i c(p.x(), p.y());
-
-	mm->set_position(c);
-	mm->set_global_position(c);
-	mm->set_velocity(Input::get_singleton()->get_last_mouse_velocity());
-
-	if (_old_invalid) {
-		_old_x = mm->get_position().x;
-		_old_y = mm->get_position().y;
-		_old_invalid = false;
-	}
-
-	mm->set_relative(Vector2(mm->get_position() - Vector2(_old_x, _old_y)));
-	_old_x = mm->get_position().x;
-	_old_y = mm->get_position().y;
-
-	Input::get_singleton()->parse_input_event(mm);
-}
-
-void DisplayServerWidgetWindows::mousePressEvent(QMouseEvent *p_event) {
-	_mouse_button_event(p_event,true);
-}
-
-void DisplayServerWidgetWindows::mouseReleaseEvent(QMouseEvent *p_event) {
-	_mouse_button_event(p_event, false);
-}
-
-void DisplayServerWidgetWindows::mouseDoubleClickEvent(QMouseEvent* p_event) {
-	_mouse_button_event(p_event, true,true);
-}
-
-void DisplayServerWidgetWindows::wheelEvent(QWheelEvent *p_event) {
-	Ref<InputEventMouseButton> mb;
-	mb.instantiate();
-	mb->set_window_id(MAIN_WINDOW_ID);
-	mb->set_pressed(true);
-	
-	int motion = p_event->angleDelta().y();
-	if (motion > 0) {
-		mb->set_button_index(MouseButton::WHEEL_UP);
-	}
-	else {
-		mb->set_button_index(MouseButton::WHEEL_DOWN);
-	}
-	mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
-	if (mb->is_pressed()) {
-		last_button_state.set_flag(mouse_button_to_mask(mb->get_button_index()));
-	}
-	else {
-		last_button_state.clear_flag(mouse_button_to_mask(mb->get_button_index()));
-	}
-	mb->set_button_mask(last_button_state);
-	QPoint p = mapFromGlobal(QCursor::pos());
-	mb->set_position(Vector2(p.x(), p.y()));
-	Input::get_singleton()->parse_input_event(mb);
-
-	if (mb->is_pressed() && mb->get_button_index() >= MouseButton::WHEEL_UP && mb->get_button_index() <= MouseButton::WHEEL_RIGHT) {
-		// Send release for mouse wheel.
-		Ref<InputEventMouseButton> mbd = mb->duplicate();
-		mbd->set_window_id(0);
-		last_button_state.clear_flag(mouse_button_to_mask(mbd->get_button_index()));
-		mbd->set_button_mask(last_button_state);
-		mbd->set_pressed(false);
-		Input::get_singleton()->parse_input_event(mbd);
-	}
-}
-
-void DisplayServerWidgetWindows::keyPressEvent(QKeyEvent *p_event)
-{
-	_key_event(p_event, true);
-}
-
-void DisplayServerWidgetWindows::keyReleaseEvent(QKeyEvent *p_event)
-{
-	_key_event(p_event, false);
-}
-
-void DisplayServerWidgetWindows::dragEnterEvent(QDragEnterEvent* p_event)
-{
-	if (p_event->mimeData()->hasUrls()) {
-		p_event->acceptProposedAction();
-	}
-}
-
-void DisplayServerWidgetWindows::dropEvent(QDropEvent* p_event)
-{
-	const QMimeData* mime_data = p_event->mimeData();
-	if (mime_data->hasUrls()) {
-		QList<QUrl> url_list = mime_data->urls();
-
-		Vector<String> files;
-		foreach(QUrl url, url_list) {
-			QString file_path = url.toLocalFile();
-			files.push_back(file_path.toStdWString().c_str());
-		}
-		WindowID window_id = MAIN_WINDOW_ID;
-
-		WindowData& wd = _windows[window_id];
-		if (files.size() && !wd.drop_files_callback.is_null()) {
-			Variant v = files;
-			Variant* vp = &v;
-			Variant ret;
-			Callable::CallError ce;
-			wd.drop_files_callback.callp((const Variant**)&vp, 1, ret, ce);
-		}
-	}
-}
-
-void DisplayServerWidgetWindows::resizeEvent(QResizeEvent* p_event)
-{
-	WindowID window_id = MAIN_WINDOW_ID;
-	WindowData& wd = _windows[window_id];
-
-	int w = p_event->size().width();
-	int h = p_event->size().height();
-
-	if (w == wd.width && h == wd.height) {
-		return;
-	}
-
-	wd.width = w;
-	wd.height = h;
-
-	wd.maximized = false;
-	wd.minimized = false;
-	wd.fullscreen = false;
-
-	if (windowState() & Qt::WindowMaximized) {
-		wd.maximized = true;
-	}
-	if (windowState() & Qt::WindowMinimized) {
-		wd.minimized = true;
-	}
-	if (windowState() & Qt::WindowFullScreen) {
-		wd.fullscreen = true;
-	}
-
-	bool rect_changed = true;
-#if defined(VULKAN_ENABLED)
-	if (context_vulkan && wd.context_created) {
-		// Note: Trigger resize event to update swapchains when window is minimized/restored, even if size is not changed.
-		context_vulkan->window_resize(window_id, w, h);
-	}
-#endif
-
-	if (rect_changed) {
-		if (!wd.rect_changed_callback.is_null()) {
-			Variant size = Rect2i(wd.last_pos.x, wd.last_pos.y, wd.width, wd.height);
-			const Variant* args[] = { &size };
-			Variant ret;
-			Callable::CallError ce;
-			wd.rect_changed_callback.callp(args, 1, ret, ce);
-		}
-	}
-}
-
-void DisplayServerWidgetWindows::closeEvent(QCloseEvent *p_event) {
-
-	WindowID window_id = MAIN_WINDOW_ID;
-
-	WindowData& wd = _windows[window_id];
-
-	_send_window_event(wd, WINDOW_EVENT_CLOSE_REQUEST);
-}
-
-/* Override default system paint engine to prevent errors. */
-QPaintEngine *DisplayServerWidgetWindows::paintEngine() const {
-	return reinterpret_cast<QPaintEngine *>(0);
-}
 
 void DisplayServerWidgetWindows::_send_window_event(const WindowData& wd, WindowEvent p_event) {
 	if (!wd.event_callback.is_null()) {
@@ -551,7 +234,6 @@ void DisplayServerWidgetWindows::_send_window_event(const WindowData& wd, Window
 
 void DisplayServerWidgetWindows::_set_mouse_mode_impl(MouseMode p_mode)
 {
-	
 }
 
 void DisplayServerWidgetWindows::_dispatch_input_events(const Ref<InputEvent> &p_event) {
@@ -560,74 +242,16 @@ void DisplayServerWidgetWindows::_dispatch_input_events(const Ref<InputEvent> &p
 
 void DisplayServerWidgetWindows::_dispatch_input_event(const Ref<InputEvent> &p_event) {
 
-	if (in_dispatch_input_event) {
-		return;
-	}
-
-	in_dispatch_input_event = true;
-	Variant ev = p_event;
-	Variant *evp = &ev;
-	Variant ret;
-	Callable::CallError ce;
-
-	{
-		List<WindowID>::Element* E = _popup_list.back();
-		if (E && Object::cast_to<InputEventKey>(*p_event)) {
-			// Redirect keyboard input to active popup.
-			if (_windows.has(E->get())) {
-				Callable callable = _windows[E->get()].input_event_callback;
-				if (callable.is_valid()) {
-					callable.callp((const Variant**)&evp, 1, ret, ce);
-				}
-			}
-			in_dispatch_input_event = false;
-			return;
-		}
-	}
-
-	Ref<InputEventFromWindow> event_from_window = p_event;
-	if (event_from_window.is_valid() && event_from_window->get_window_id() != INVALID_WINDOW_ID) {
-		// Send to a single window.
-		if (_windows.has(event_from_window->get_window_id())) {
-			Callable callable = _windows[event_from_window->get_window_id()].input_event_callback;
-			if (callable.is_valid()) {
-				callable.callp((const Variant**)&evp, 1, ret, ce);
-			}
-		}
-	}
-	else {
-		// Send to all windows.
-		for (const KeyValue<WindowID, WindowData>& E : _windows) {
-			const Callable callable = E.value.input_event_callback;
-			if (callable.is_valid()) {
-				callable.callp((const Variant**)&evp, 1, ret, ce);
-			}
-		}
-	}
-
-	in_dispatch_input_event = false;
-
+	QtEventServer::get_singleton()->dispatch_input_event(p_event);
 }
 
 void DisplayServerWidgetWindows::window_set_size(const Size2i p_size, WindowID p_window) {
 	// AAA
-	ERR_FAIL_COND(!_windows.has(p_window));
-	WindowData& wd = _windows[p_window];
-
-	if (wd.fullscreen || wd.maximized) {
-		return;
-	}
-
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->set_size(p_size);
 	int w = p_size.width;
 	int h = p_size.height;
 
-
-	if (w == wd.width && h == wd.height) {
-		return;
-	}
-	wd.width = w;
-	wd.height = h;
-	
 #if defined(VULKAN_ENABLED)
 	if (context_vulkan) {
 		context_vulkan->window_resize(p_window, w, h);
@@ -638,12 +262,11 @@ void DisplayServerWidgetWindows::window_set_size(const Size2i p_size, WindowID p
 		gl_manager->window_resize(p_window, w, h);
 	}
 #endif
-
-	resize(w, h);
 }
 
 Size2i DisplayServerWidgetWindows::window_get_size(WindowID p_window) const {
-	return Size2(size().width(), size().height());
+	ERR_FAIL_COND_V(!QtEventServer::get_singleton()->get_window(p_window), Size2());
+	return QtEventServer::get_singleton()->get_window(p_window)->get_size();
 }
 
 Size2i DisplayServerWidgetWindows::window_get_size_with_decorations(WindowID p_window) const {
@@ -651,9 +274,8 @@ Size2i DisplayServerWidgetWindows::window_get_size_with_decorations(WindowID p_w
 }
 
 void DisplayServerWidgetWindows::window_set_mode(WindowMode p_mode, WindowID p_window) {
-	int a = 0;
-	show();
-	printf("::%d\n", a);
+	ERR_FAIL_COND(!QtEventServer::get_singleton()->get_window(p_window));
+	QtEventServer::get_singleton()->get_window(p_window)->show_window();
 }
 
 DisplayServer::WindowMode DisplayServerWidgetWindows::window_get_mode(WindowID p_window) const {
@@ -662,13 +284,11 @@ DisplayServer::WindowMode DisplayServerWidgetWindows::window_get_mode(WindowID p
 
 bool DisplayServerWidgetWindows::window_is_maximize_allowed(WindowID p_window) const {
 	// FIXME: Implement this, or confirm that it should always be true.
-
 	return true;
 }
 
 void DisplayServerWidgetWindows::window_set_flag(WindowFlags p_flag, bool p_enabled, WindowID p_window) {
 	int a = 0;
-
 	printf("::%d\n", a);
 }
 
@@ -683,54 +303,21 @@ void DisplayServerWidgetWindows::window_move_to_foreground(WindowID p_window) {
 }
 
 bool DisplayServerWidgetWindows::window_can_draw(WindowID p_window) const {
-	return isVisible();
+	return true;
 }
 
 bool DisplayServerWidgetWindows::can_any_window_draw() const {
-	return isVisible();
+	return true;
 }
 
 void DisplayServerWidgetWindows::cursor_set_shape(CursorShape p_shape)
 {
-	ERR_FAIL_INDEX(p_shape, CURSOR_MAX);
-
-	if (_cursor_shape == p_shape) {
-		return;
-	}
-
-	if (_mouse_mode != MOUSE_MODE_VISIBLE && _mouse_mode != MOUSE_MODE_CONFINED) {
-		_cursor_shape = p_shape;
-		return;
-	}
-	static const QCursor win_cursors[CURSOR_MAX] = {
-		Qt::ArrowCursor,
-		Qt::IBeamCursor,
-		Qt::PointingHandCursor,
-		Qt::CrossCursor,
-		Qt::WaitCursor,
-		Qt::BusyCursor,
-		Qt::SizeAllCursor,
-		Qt::ArrowCursor,
-		Qt::ForbiddenCursor,
-		Qt::SizeVerCursor,
-		Qt::SizeHorCursor,
-		Qt::SizeBDiagCursor,
-		Qt::SizeFDiagCursor,
-		Qt::SizeVerCursor,
-		Qt::SizeVerCursor,
-		Qt::SizeHorCursor,
-		Qt::WhatsThisCursor
-	};
-
-	QCursor cursor(win_cursors[p_shape]);
-	setCursor(cursor);
-
-	_cursor_shape = p_shape;
+	QtEventServer::get_singleton()->cursor_set_shape(p_shape);
 }
 
 DisplayServer::CursorShape DisplayServerWidgetWindows::cursor_get_shape() const
 {
-	return _cursor_shape;
+	return QtEventServer::get_singleton()->cursor_get_shape();
 }
 
 void DisplayServerWidgetWindows::window_set_vsync_mode(DisplayServer::VSyncMode p_vsync_mode, WindowID p_window)
@@ -740,7 +327,6 @@ void DisplayServerWidgetWindows::window_set_vsync_mode(DisplayServer::VSyncMode 
 			context_vulkan->set_vsync_mode(p_window, p_vsync_mode);
 		}
 #endif
-
 #if defined(GLES3_ENABLED)
 	if (gl_manager) {
 		gl_manager->set_use_vsync(p_window, p_vsync_mode != DisplayServer::VSYNC_DISABLED);
@@ -755,18 +341,16 @@ DisplayServer::VSyncMode DisplayServerWidgetWindows::window_get_vsync_mode(Windo
 			return context_vulkan->get_vsync_mode(p_window);
 		}
 #endif
-
 #if defined(GLES3_ENABLED)
 	if (gl_manager) {
 		return gl_manager->is_using_vsync(p_window) ? DisplayServer::VSYNC_ENABLED : DisplayServer::VSYNC_DISABLED;
 	}
 #endif
-
 	return DisplayServer::VSYNC_ENABLED;
 }
 
 bool DisplayServerWidgetWindows::get_swap_cancel_ok() {
-	return isVisible();
+	return true;
 }
 
 void DisplayServerWidgetWindows::process_events() {
@@ -774,21 +358,37 @@ void DisplayServerWidgetWindows::process_events() {
 	if (!main_loop_valid) {
 		main_loop_valid = true;
 	}
+	if (has_change) {
 
-	_process_key_events();
+#if defined(VULKAN_ENABLED)
+		if (context_vulkan) {
+			// Note: Trigger resize event to update swapchains when window is minimized/restored, even if size is not changed.
+			context_vulkan->window_resize(0, has_change_width, has_change_height);
+		}
+#endif
+		has_change = false;
+	}
+
+	QtEventServer::get_singleton()->process_key_events();
 	Input::get_singleton()->flush_buffered_events();
 }
 
+
+void DisplayServerWidgetWindows::process_events_end() {
+	if (!has_change) {
+		QtSyncGengine::get_singleton()->wake();
+	}
+}
+
+
 Vector<String> DisplayServerWidgetWindows::get_rendering_drivers_func() {
 	Vector<String> drivers;
-
 #ifdef VULKAN_ENABLED
 	drivers.push_back("vulkan");
 #endif
 #ifdef GLES3_ENABLED
 	drivers.push_back("opengl3");
 #endif
-
 	return drivers;
 }
 
@@ -826,50 +426,27 @@ typedef enum _SHC_PROCESS_DPI_AWARENESS {
 	SHC_PROCESS_PER_MONITOR_DPI_AWARE = 2
 } SHC_PROCESS_DPI_AWARENESS;
 
-DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i *p_position, const Vector2i &p_resolution, int p_screen, Error &r_error, QWidget *parent) //:
-	: QWidget(parent) {
-	KeyMappingWindows::initialize();
-	_old_invalid = true;
-	_old_x = 0;
-	_old_y = 0;
-
-	// These widget attributes are important. This lets Godot take over what's
-	// drawn onto the widget's screen space. 
-	setAttribute(Qt::WA_OpaquePaintEvent);
-	setAttribute(Qt::WA_NoSystemBackground);
-	setFocusPolicy(Qt::StrongFocus);
-	// HOWEVER, this important attribute stops the "paintEvent" slot from being called,
-	// thus we'll need to write our own method that paints to the screen every frame.
-	setAttribute(Qt::WA_PaintOnScreen);
-
-	setMouseTracking(true);
-	setAcceptDrops(true);
-
-	// re-size the widget size to the default godot window size
-	resize(1152, 648);
-
-	int width = size().width();
-	int height = size().height();
+DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i *p_position, const Vector2i &p_resolution, int p_screen, Error &r_error)
+{
+	GdiWindow* main_win = QtEventServer::get_singleton()->get_window(MAIN_WINDOW_ID);
+	HWND winId = (HWND)main_win->winId();
+	int width = main_win->width();
+	int height = main_win->height();
+	main_win->connect("resize", callable_mp(this, &DisplayServerWidgetWindows::resize));
 
 	rendering_driver = p_rendering_driver;
-
 	if (OS::get_singleton()->is_hidpi_allowed()) {
 		HMODULE Shcore = LoadLibraryW(L"Shcore.dll");
-
 		if (Shcore != nullptr) {
 			typedef HRESULT(WINAPI * SetProcessDpiAwareness_t)(SHC_PROCESS_DPI_AWARENESS);
-
 			SetProcessDpiAwareness_t SetProcessDpiAwareness = (SetProcessDpiAwareness_t)GetProcAddress(Shcore, "SetProcessDpiAwareness");
-
 			if (SetProcessDpiAwareness) {
 				SetProcessDpiAwareness(SHC_PROCESS_SYSTEM_DPI_AWARE);
 			}
 		}
 	}
 
-	WindowID id = _window_id_counter;
-	WindowData& wd = _windows[id];
-
+	WindowData wd;
 	if (p_mode == WINDOW_MODE_FULLSCREEN || p_mode == WINDOW_MODE_EXCLUSIVE_FULLSCREEN) {
 		wd.fullscreen = true;
 		if (p_mode == WINDOW_MODE_FULLSCREEN) {
@@ -883,27 +460,21 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 		wd.maximized = true;
 		wd.minimized = false;
 	}
-
 	if (p_mode == WINDOW_MODE_MINIMIZED) {
 		wd.maximized = false;
 		wd.minimized = true;
 	}
-
 	wd.last_pressure = 0;
 	wd.last_pressure_update = 0;
 	wd.last_tilt = Vector2();
-
 	//wd.last_pos = p_rect.position;
 	wd.width = width;
 	wd.height = height;
 
-	_window_id_counter++;
-
-
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
 		context_vulkan = memnew(VulkanContextWindows);
-		if (context_vulkan->initialize() != OK) {
+		//if (context_vulkan->initialize() != OK) {
 			memdelete(context_vulkan);
 			context_vulkan = nullptr;
 			r_error = ERR_UNAVAILABLE;
@@ -913,93 +484,73 @@ DisplayServerWidgetWindows::DisplayServerWidgetWindows(const String &p_rendering
 #endif
 	// Init context and rendering device
 #if defined(GLES3_ENABLED)
-
 	if (rendering_driver == "opengl3") {
 		GLManager_Windows::ContextType opengl_api_type = GLManager_Windows::GLES_3_0_COMPATIBLE;
-
 		gl_manager = memnew(GLManager_Windows(opengl_api_type));
-
 		if (gl_manager->initialize() != OK) {
 			memdelete(gl_manager);
 			gl_manager = nullptr;
 			r_error = ERR_UNAVAILABLE;
 			return;
 		}
-
 		RasterizerGLES3::make_current();
 	}
 #endif
-
-
 #ifdef VULKAN_ENABLED
 	if (context_vulkan) {
-		if (context_vulkan->window_create(0, DisplayServer::VSYNC_ENABLED, (HWND)winId(), 0, width, height) != OK) {
+		if (context_vulkan->window_create(0, DisplayServer::VSYNC_ENABLED, winId, 0, width, height) != OK) {
 			memdelete(context_vulkan);
 			context_vulkan = nullptr;
-			_windows.erase(0);
 			ERR_PRINT("Failed to create Vulkan Window.");
 		}
 		wd.context_created = true;
 		context_vulkan->set_vsync_mode(0, DisplayServer::VSYNC_ENABLED);
 	}
 #endif
-
 #ifdef GLES3_ENABLED
 	if (gl_manager) {
-		if (gl_manager->window_create(0, (HWND)winId(), 0, size().width(), size().height()) != OK) {
+		if (gl_manager->window_create(0, winId, 0, width, height) != OK) {
 			memdelete(gl_manager);
 			gl_manager = nullptr;
-			_windows.erase(0);
 			ERR_PRINT("Failed to create an OpenGL window.");
 		}
 		window_set_vsync_mode(p_vsync_mode, 0);
 	}
 #endif
-
 #if defined(VULKAN_ENABLED)
-
 	if (rendering_driver == "vulkan") {
 		rendering_device_vulkan = memnew(RenderingDeviceVulkan);
 		rendering_device_vulkan->initialize(context_vulkan);
-
 		RendererCompositorRD::make_current();
 	}
 #endif
-
 	r_error = OK;
-
-	QPoint mouse_pos = mapFromGlobal(QCursor::pos());
-	Input::get_singleton()->set_mouse_position(Point2i(mouse_pos.x(), mouse_pos.y()));
+	
 	Input::get_singleton()->set_event_dispatch_function(_dispatch_input_events);
 }
 
 DisplayServerWidgetWindows::~DisplayServerWidgetWindows() {
-
 #ifdef VULKAN_ENABLED
 	if (context_vulkan) {
 		context_vulkan->window_destroy(MAIN_WINDOW_ID);
 	}
 #endif
-
 #if defined(VULKAN_ENABLED)
 	if (rendering_device_vulkan) {
 		rendering_device_vulkan->finalize();
 		memdelete(rendering_device_vulkan);
 		rendering_device_vulkan = nullptr;
 	}
-
 	if (context_vulkan) {
 		memdelete(context_vulkan);
 		context_vulkan = nullptr;
 	}
 #endif
-
 #ifdef GLES3_ENABLED
 	if (gl_manager) {
 		memdelete(gl_manager);
 		gl_manager = nullptr;
 	}
 #endif
-
 }
 

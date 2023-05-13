@@ -1713,6 +1713,7 @@ Error VulkanContext::_window_create(DisplayServer::WindowID p_window_id, Display
 }
 
 void VulkanContext::window_resize(DisplayServer::WindowID p_window, int p_width, int p_height) {
+	_THREAD_SAFE_METHOD_
 	ERR_FAIL_COND(!windows.has(p_window));
 	windows[p_window].width = p_width;
 	windows[p_window].height = p_height;
@@ -1766,6 +1767,7 @@ void VulkanContext::window_destroy(DisplayServer::WindowID p_window_id) {
 }
 
 Error VulkanContext::_clean_up_swap_chain(Window *window) {
+	_THREAD_SAFE_METHOD_
 	if (!window->swapchain) {
 		return OK;
 	}
@@ -1791,6 +1793,7 @@ Error VulkanContext::_clean_up_swap_chain(Window *window) {
 }
 
 Error VulkanContext::_update_swap_chain(Window *window) {
+	_THREAD_SAFE_METHOD_
 	VkResult err;
 
 	if (window->swapchain) {

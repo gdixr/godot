@@ -480,6 +480,7 @@ public:
 	virtual void tablet_set_current_driver(const String &p_driver){};
 
 	virtual void process_events() = 0;
+	virtual void process_events_end() {};
 
 	virtual void force_process_and_drop_events();
 

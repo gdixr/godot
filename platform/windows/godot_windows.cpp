@@ -34,6 +34,7 @@
 #include <locale.h>
 #include <stdio.h>
 #include <QApplication>
+#include <QWidget>
 
 // For export templates, add a section; the exporter will patch it to enclose
 // the data appended to the executable (bundled PCK)
@@ -149,12 +150,9 @@ char *wc_to_utf8(const wchar_t *wc) {
 	return ubuf;
 }
 
-int widechar_main(int argc, wchar_t **argv) {
-
-	// Tp suitbale for windows resolution scale
-	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Floor);
-	QApplication a(argc, nullptr);
-
+int gdi_process_main(int argc, wchar_t** argv)
+{
+	//OS_Windows* os = (OS_Windows*)(OS::get_singleton());
 	OS_Windows os(nullptr);
 
 	setlocale(LC_CTYPE, "");
@@ -162,7 +160,7 @@ int widechar_main(int argc, wchar_t **argv) {
 	// for test
 	argc = 4;
 
-	char **argv_utf8 = new char *[argc];
+	char** argv_utf8 = new char* [argc];
 
 	for (int i = 0; i < 1; ++i) {
 		argv_utf8[i] = wc_to_utf8(argv[i]);
@@ -170,7 +168,7 @@ int widechar_main(int argc, wchar_t **argv) {
 
 	argv_utf8[1] = wc_to_utf8(L"-e");
 	argv_utf8[2] = wc_to_utf8(L"--path");
-	argv_utf8[3] = wc_to_utf8(L"C:/Users/johnx/Documents/godotSample/Helloworld");
+	argv_utf8[3] = wc_to_utf8(L"F:/godot4/2");
 
 	TEST_MAIN_PARAM_OVERRIDE(argc, argv_utf8)
 
@@ -192,13 +190,28 @@ int widechar_main(int argc, wchar_t **argv) {
 		os.run();
 	}
 	Main::cleanup();
-
 	for (int i = 0; i < argc; ++i) {
 		delete[] argv_utf8[i];
 	}
 	delete[] argv_utf8;
-
 	return os.get_exit_code();
+}
+
+#include "platform/windows/gdi_window.h"
+
+int widechar_main(int argc, wchar_t **argv) {
+
+	// Tp suitbale for windows resolution scale
+	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Floor);
+	QApplication a(argc, nullptr);
+	QtEventServer event_server;
+	event_server.create_and_show_window();
+	std::thread gmain_thread = std::thread(&gdi_process_main, argc, argv);
+	a.exec();
+
+	gmain_thread.join();
+	
+	return 0;
 }
 
 int _main() {

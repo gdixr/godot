@@ -1393,12 +1393,13 @@ void OS_Windows::run() {
 	while (true) {
 
 		// processing qt related events
-		QApplication::processEvents();
+		// QApplication::processEvents();
 
 		DisplayServer::get_singleton()->process_events(); // get rid of pending events
 		if (Main::iteration()) {
 			break;
 		}
+		DisplayServer::get_singleton()->process_events_end();
 	}
 
 	main_loop->finalize();
